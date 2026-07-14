@@ -77,6 +77,8 @@ class SmlResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(
             [scenario.id for scenario in scenarios],
             [
+                'sml.breakable-block',
+                'sml.crouch',
                 'sml.damage-restart',
                 'sml.first-power-up',
                 'sml.heart',
