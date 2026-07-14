@@ -78,6 +78,8 @@ class SmlResearchIntegrationTest(unittest.TestCase):
             [scenario.id for scenario in scenarios],
             [
                 'sml.block-hit-chibibo',
+                'sml.block-hit-fly',
+                'sml.block-hit-nokobon',
                 'sml.breakable-block',
                 'sml.chibibo-stomp',
                 'sml.crouch',
