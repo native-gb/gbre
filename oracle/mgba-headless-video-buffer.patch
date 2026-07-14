@@ -1,0 +1,23 @@
+diff --git a/src/platform/headless-main.c b/src/platform/headless-main.c
+--- a/src/platform/headless-main.c
++++ b/src/platform/headless-main.c
+@@ -54,5 +54,6 @@ static bool _headlessCheckResiger(void);
+ 
+ static struct mCore* core;
++static mColor videoOutputBuffer[256 * 256];
+ 
+ static bool _dispatchExiting = false;
+ static int _exitCode = 0;
+@@ -112,8 +113,12 @@ int main(int argc, char * argv[]) {
+ 	core = mCoreFind(args.fname);
+ 	if (!core) {
+ 		goto argsExit;
+ 	}
+ 	core->init(core);
++	unsigned videoWidth;
++	unsigned videoHeight;
++	core->currentVideoSize(core, &videoWidth, &videoHeight);
++	core->setVideoBuffer(core, videoOutputBuffer, videoWidth);
+ 	mCoreInitConfig(core, "headless");
+ 	mArgumentsApply(&args, NULL, 0, &core->config);
+ 

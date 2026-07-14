@@ -1,0 +1,85 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "RGBDS Assembly",
+  "scopeName": "source.rgbds",
+  "patterns": [
+    {"include": "#comments"},
+    {"include": "#strings"},
+    {"include": "#labels"},
+    {"include": "#directives"},
+    {"include": "#instructions"},
+    {"include": "#registers"},
+    {"include": "#numbers"},
+    {"include": "#builtins"}
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {"name": "comment.line.semicolon.rgbds", "match": ";.*$"}
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.rgbds",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{"name": "constant.character.escape.rgbds", "match": "\\\\."}]
+        }
+      ]
+    },
+    "labels": {
+      "patterns": [
+        {
+          "name": "entity.name.function.label.rgbds",
+          "match": "^\\s*([A-Za-z_@][A-Za-z0-9_@#]*|\\.[A-Za-z_@][A-Za-z0-9_@#.]*)::?",
+          "captures": {"1": {"name": "entity.name.function.label.rgbds"}}
+        }
+      ]
+    },
+    "directives": {
+      "patterns": [
+        {
+          "name": "keyword.control.directive.rgbds",
+          "match": "(?i)\\b(SECTION|INCLUDE|INCBIN|DB|DW|DL|DS|DEF|EQU|EQUS|SET|REDEF|PURGE|EXPORT|GLOBAL|MACRO|ENDM|REPT|FOR|ENDR|IF|ELIF|ELSE|ENDC|UNION|NEXTU|ENDU|LOAD|ENDL|PUSHS|POPS|OPT|ASSERT|STATIC_ASSERT|FAIL|WARN|PRINT|PRINTLN|CHARMAP|NEWCHARMAP|SETCHARMAP)\\b"
+        },
+        {
+          "name": "storage.type.memory.rgbds",
+          "match": "(?i)\\b(ROM0|ROMX|VRAM|SRAM|WRAM0|WRAMX|OAM|HRAM|BANK|ALIGN)\\b"
+        }
+      ]
+    },
+    "instructions": {
+      "patterns": [
+        {
+          "name": "keyword.operator.instruction.rgbds",
+          "match": "(?i)\\b(ADC|ADD|AND|BIT|CALL|CCF|CP|CPL|DAA|DEC|DI|EI|HALT|INC|JP|JR|LD|LDH|NOP|OR|POP|PUSH|RES|RET|RETI|RL|RLA|RLC|RLCA|RR|RRA|RRC|RRCA|RST|SBC|SCF|SET|SLA|SRA|SRL|STOP|SUB|SWAP|XOR)\\b"
+        }
+      ]
+    },
+    "registers": {
+      "patterns": [
+        {
+          "name": "variable.language.register.rgbds",
+          "match": "(?i)(?<![A-Za-z0-9_])(AF|BC|DE|HL|SP|PC|A|B|C|D|E|H|L|Z|NZ|NC)(?![A-Za-z0-9_])"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {"name": "constant.numeric.hex.rgbds", "match": "(?i)(?<![A-Za-z0-9_])(?:\\$[0-9A-F_]+|0x[0-9A-F_]+)"},
+        {"name": "constant.numeric.binary.rgbds", "match": "(?i)(?<![A-Za-z0-9_])(?:%[01_]+|0b[01_]+)"},
+        {"name": "constant.numeric.decimal.rgbds", "match": "(?<![A-Za-z0-9_])(?:[0-9][0-9_]*)(?![A-Za-z0-9_])"}
+      ]
+    },
+    "builtins": {
+      "patterns": [
+        {
+          "name": "support.function.builtin.rgbds",
+          "match": "(?i)\\b(BANK|SIZEOF|STARTOF|HIGH|LOW|ISCONST|STRLEN|STRCAT|STRSUB|STRCMP|STRIN|STRRIN|STRFMT|CHARLEN|CHARSUB)\\b(?=\\s*\\()"
+        },
+        {"name": "variable.language.builtin.rgbds", "match": "\\b(__FILE__|__LINE__|__DATE__|__TIME__|_NARG|@)\\b"}
+      ]
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "name": "gbre-navigation",
+  "displayName": "GBRE Navigation",
+  "description": "Navigate ROM evidence, assembly, and native replacements by stable GBRE IDs.",
+  "version": "0.1.0",
+  "publisher": "vega",
+  "engines": {"vscode": "^1.90.0"},
+  "categories": ["Other"],
+  "activationEvents": [
+    "onStartupFinished",
+    "onLanguage:rgbds",
+    "onCommand:gbre.openAssembly",
+    "onCommand:gbre.openNative",
+    "onCommand:gbre.openReport",
+    "onCommand:gbre.gotoAddress"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "rgbds",
+        "aliases": ["RGBDS Assembly", "rgbds"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "rgbds",
+        "scopeName": "source.rgbds",
+        "path": "./syntaxes/rgbds.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {"command": "gbre.openAssembly", "title": "GBRE: Open Assembly"},
+      {"command": "gbre.openNative", "title": "GBRE: Open Native Replacement"},
+      {"command": "gbre.openReport", "title": "GBRE: Open ROM Coverage Report"},
+      {"command": "gbre.gotoAddress", "title": "GBRE: Go to ROM Address"}
+    ],
+    "keybindings": [
+      {"command": "gbre.openAssembly", "key": "ctrl+alt+a", "when": "editorTextFocus"},
+      {"command": "gbre.openNative", "key": "ctrl+alt+n", "when": "editorTextFocus"},
+      {"command": "gbre.openReport", "key": "ctrl+alt+r"}
+    ],
+    "configuration": {
+      "title": "GBRE",
+      "properties": {
+        "gbre.manifest": {"type": "string", "default": "", "description": "Path to the GBRE game manifest."},
+        "gbre.romMap": {"type": "string", "default": "", "description": "Path to the generated GBRE ROM map CSV."},
+        "gbre.referenceRoot": {"type": "string", "default": "", "description": "Root containing assembly source files."},
+        "gbre.report": {"type": "string", "default": "", "description": "Path to the generated coverage report."}
+      }
+    }
+  }
+}
