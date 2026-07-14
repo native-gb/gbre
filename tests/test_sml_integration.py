@@ -90,6 +90,7 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 'sml.first-power-up',
                 'sml.fly-script',
                 'sml.fly-stomp',
+                'sml.game-over',
                 'sml.gao-projectile',
                 'sml.gao-stomp',
                 'sml.goal-bonus',
