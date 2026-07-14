@@ -97,6 +97,7 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 'sml.horizontal-platform-carry',
                 'sml.invincible-chibibo',
                 'sml.invincible-gao',
+                'sml.invincible-second-pipe-room',
                 'sml.multi-coin',
                 'sml.nokobon-script',
                 'sml.nokobon-stomp-bomb',
