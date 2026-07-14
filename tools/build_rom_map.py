@@ -154,7 +154,7 @@ def write_map(
     path.parent.mkdir(parents=True, exist_ok=True)
     boundaries = make_boundaries(manifest, sections, symbols, evidence_spans)
     with path.open('w', newline='') as destination:
-        writer = csv.writer(destination)
+        writer = csv.writer(destination, lineterminator='\n')
         writer.writerow(
             [
                 'start', 'end_exclusive', 'bytes', 'section', 'symbol',

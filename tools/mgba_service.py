@@ -48,7 +48,7 @@ def available_port() -> int:
 class MgbaService:
     def __init__(self, gbre_root: Path, rom: Path, expected_sha1: str,
                  *, runtime_root: Path | None = None, timeout: float = 5.0,
-                 executable: Path | None = None):
+                 executable: Path | None = None, adapter: Path | None = None):
         self.gbre_root = gbre_root.resolve()
         self.rom = rom.resolve()
         self.expected_sha1 = expected_sha1.lower()
@@ -56,6 +56,8 @@ class MgbaService:
         self.timeout = timeout
         self.executable = (executable or self.gbre_root /
                            '.cache/mgba/build-headless/mgba-headless').resolve()
+        self.adapter = (adapter or self.gbre_root /
+                        'oracle/tetris_observation.lua').resolve()
         self.paths: ServicePaths | None = None
         self.process: subprocess.Popen[str] | None = None
         self.socket: socket.socket | None = None
@@ -80,6 +82,8 @@ class MgbaService:
                 f'pinned headless mGBA is missing: {self.executable}; '
                 'run scripts/bootstrap-mgba-oracle.sh'
             )
+        if not self.adapter.is_file():
+            raise MgbaServiceError(f'observation adapter is missing: {self.adapter}')
 
     def start(self) -> dict[str, Any]:
         if self.running:
@@ -101,7 +105,7 @@ class MgbaService:
             'GBRE_SERVICE_PORT': str(port),
             'GBRE_SERVICE_READY': str(self.paths.ready),
             'GBRE_SERVICE_ADAPTER': str(
-                self.gbre_root / 'oracle/tetris_observation.lua'),
+                self.adapter),
             'GBRE_SERVICE_ROM_SHA1': self.expected_sha1,
             'GBRE_SERVICE_MGBA_BUILD': MGBA_COMMIT,
         })

@@ -97,3 +97,5 @@ function GBRE_TETRIS_OBSERVATION(input_mask)
         }),
     })
 end
+
+GBRE_OBSERVATION = GBRE_TETRIS_OBSERVATION

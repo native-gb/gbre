@@ -9,6 +9,10 @@ from pathlib import Path
 SECTION_RE = re.compile(
     r'^\s*SECTION: \$([0-9a-fA-F]{4})-\$([0-9a-fA-F]{4}) .*\["(.*)"\]$'
 )
+ROM_BANK_RE = re.compile(
+    r'^(?:ROM[0X]\s+bank|ROM\s+Bank)\s*#(\d+)(?:\s+\(HOME\))?:$',
+    re.IGNORECASE,
+)
 SYMBOL_RE = re.compile(r'^([0-9A-Fa-f]{2}):([0-9A-Fa-f]{4}) (\S+)$')
 
 
@@ -27,6 +31,7 @@ class Section:
     start: int
     end: int
     name: str
+    bank: int = 0
 
 
 @dataclass(frozen=True)
@@ -147,30 +152,66 @@ def load_manifest(path: Path) -> Manifest:
     )
 
 
+def linear_rom_address(bank: int, address: int, rom_size: int) -> int:
+    if bank == 0:
+        if not 0 <= address < min(rom_size, 0x8000):
+            raise ValueError(f"invalid ROM0 address ${address:04X}")
+        offset = address
+    else:
+        if not 0x4000 <= address < 0x8000:
+            raise ValueError(f"invalid ROMX address {bank:02X}:${address:04X}")
+        offset = bank * 0x4000 + address - 0x4000
+
+    if offset >= rom_size:
+        raise ValueError(
+            f"ROM address {bank:02X}:${address:04X} exceeds {rom_size} bytes"
+        )
+    return offset
+
+
 def read_rgbds_sections(path: Path, rom_size: int) -> list[Section]:
     sections = []
+    current_rom_bank: int | None = None
     for line in path.read_text().splitlines():
-        match = SECTION_RE.match(line)
-        if not match:
+        bank_match = ROM_BANK_RE.match(line)
+        if bank_match:
+            current_rom_bank = int(bank_match[1])
             continue
-        start = int(match[1], 16)
-        end = int(match[2], 16) + 1
-        if start < rom_size:
-            sections.append(Section(start, min(end, rom_size), match[3]))
+        if line and not line[0].isspace():
+            current_rom_bank = None
+
+        match = SECTION_RE.match(line)
+        if not match or current_rom_bank is None:
+            continue
+        cpu_start = int(match[1], 16)
+        cpu_end = int(match[2], 16)
+        start = linear_rom_address(current_rom_bank, cpu_start, rom_size)
+        end = linear_rom_address(current_rom_bank, cpu_end, rom_size) + 1
+        sections.append(Section(start, end, match[3], current_rom_bank))
     sections.sort(key=lambda item: item.start)
     return sections
 
 
-def read_rgbds_symbols(path: Path, rom_size: int) -> dict[int, list[str]]:
-    symbols: dict[int, list[str]] = {}
+def read_rgbds_symbol_entries(path: Path, rom_size: int) -> list[tuple[int, int, str]]:
+    entries = []
     for line in path.read_text().splitlines():
         match = SYMBOL_RE.match(line)
         if not match:
             continue
         bank = int(match[1], 16)
         address = int(match[2], 16)
-        if bank == 0 and address < rom_size:
-            symbols.setdefault(address, []).append(match[3])
+        try:
+            offset = linear_rom_address(bank, address, rom_size)
+        except ValueError:
+            continue
+        entries.append((bank, offset, match[3]))
+    return entries
+
+
+def read_rgbds_symbols(path: Path, rom_size: int) -> dict[int, list[str]]:
+    symbols: dict[int, list[str]] = {}
+    for _bank, offset, name in read_rgbds_symbol_entries(path, rom_size):
+        symbols.setdefault(offset, []).append(name)
     return symbols
 
 

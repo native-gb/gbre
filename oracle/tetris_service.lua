@@ -13,7 +13,8 @@ local mgba_build = assert(os.getenv("GBRE_SERVICE_MGBA_BUILD"),
     "missing GBRE_SERVICE_MGBA_BUILD")
 
 dofile(adapter_path)
-assert(GBRE_TETRIS_OBSERVATION, "observation adapter did not load")
+local observe_game = GBRE_OBSERVATION or GBRE_TETRIS_OBSERVATION
+assert(observe_game, "observation adapter did not define GBRE_OBSERVATION")
 assert(emu.writeRGBAFramebuffer, "pinned mGBA lacks the raw framebuffer hook")
 
 local server = nil
@@ -191,7 +192,7 @@ local function handle(request_id, command, arguments)
     elseif command == "observe" then
         synchronize_paused_state()
         send(response(request_id, command, {
-            '"observation":' .. GBRE_TETRIS_OBSERVATION(held_keys),
+            '"observation":' .. observe_game(held_keys),
         }))
     elseif command == "save" then
         synchronize_paused_state()

@@ -65,11 +65,18 @@ size. Unknown is a valid explicit state.
 
 ## Exact RGBDS provider
 
-For Tetris, `build_rgbds_source_map.py` copies the source tree into `build/`,
-inserts `PRINTLN` probes that emit the current address without emitting ROM
-bytes, and rebuilds with pinned RGBDS. The source map is rejected unless the
-resulting ROM SHA-1 matches the manifest. This proves source-line ownership for
-every allocated section byte without modifying the reference checkout.
+`build_rgbds_source_map.py` copies the source tree into an ignored build
+directory, inserts zero-byte exported marker labels, resolves those labels from
+the linker symbol file, and rebuilds with pinned RGBDS. Marker labels work with
+legacy RGBDS 0.3.5 as well as newer releases and preserve ROM0/ROMX bank
+identity. The source map is rejected unless the resulting ROM SHA-1 matches the
+expected image. This proves source-line ownership for every allocated section
+byte without modifying the reference checkout.
+
+The provider labels `INCBIN` spans separately from authored assembly/data and
+reserved directives. Linker gaps remain explicit `not_runtime` ranges. None of
+those mechanical classifications changes a semantic unit's understanding or
+native verification status.
 
 Future RGBDS games can use the same provider. Other assemblers can supply their
 own listing/map adapter while still producing the generic evidence columns.
