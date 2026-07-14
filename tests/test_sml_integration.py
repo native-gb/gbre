@@ -77,6 +77,7 @@ class SmlResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(
             [scenario.id for scenario in scenarios],
             [
+                'sml.block-hit-chibibo',
                 'sml.breakable-block',
                 'sml.chibibo-stomp',
                 'sml.crouch',
@@ -99,6 +100,9 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 'sml.super-damage',
                 'sml.super-flower',
                 'sml.superball',
+                'sml.superball-chibibo',
+                'sml.superball-fly',
+                'sml.superball-nokobon',
                 'sml.title-start',
                 'sml.vertical-platform-carry',
                 'sml.walk-jump-camera',
