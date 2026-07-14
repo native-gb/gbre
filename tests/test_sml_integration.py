@@ -103,6 +103,7 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 'sml.opening-obstacles',
                 'sml.pipe-room',
                 'sml.plain-block-small',
+                'sml.second-pipe-room',
                 'sml.star',
                 'sml.super-damage',
                 'sml.super-flower',
