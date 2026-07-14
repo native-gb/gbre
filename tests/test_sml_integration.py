@@ -92,6 +92,8 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 'sml.fly-stomp',
                 'sml.gao-projectile',
                 'sml.gao-stomp',
+                'sml.goal-bonus',
+                'sml.goal-next-level',
                 'sml.heart',
                 'sml.hidden-power-up',
                 'sml.horizontal-platform-carry',
