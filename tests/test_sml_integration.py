@@ -116,6 +116,7 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 'sml.superball-fly',
                 'sml.superball-gao',
                 'sml.superball-nokobon',
+                'sml.time-up',
                 'sml.title-start',
                 'sml.vertical-platform-carry',
                 'sml.walk-jump-camera',
