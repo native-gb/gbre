@@ -79,6 +79,7 @@ class SmlResearchIntegrationTest(unittest.TestCase):
             [
                 'sml.damage-restart',
                 'sml.opening-obstacles',
+                'sml.pipe-room',
                 'sml.title-start',
                 'sml.walk-jump-camera',
             ],
