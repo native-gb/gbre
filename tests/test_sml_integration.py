@@ -84,6 +84,7 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 'sml.first-power-up',
                 'sml.heart',
                 'sml.hidden-power-up',
+                'sml.invincible-chibibo',
                 'sml.multi-coin',
                 'sml.opening-obstacles',
                 'sml.pipe-room',
