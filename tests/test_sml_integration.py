@@ -78,6 +78,7 @@ class SmlResearchIntegrationTest(unittest.TestCase):
             [scenario.id for scenario in scenarios],
             [
                 'sml.damage-restart',
+                'sml.first-power-up',
                 'sml.opening-obstacles',
                 'sml.pipe-room',
                 'sml.title-start',
