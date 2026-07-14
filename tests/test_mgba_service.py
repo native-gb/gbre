@@ -98,6 +98,25 @@ class MgbaProtocolTest(unittest.TestCase):
         with self.assertRaisesRegex(MgbaServiceError, 'does not match'):
             service.start()
 
+    def test_live_session_can_preserve_game_specific_observations(self):
+        class FakeService:
+            def observe(self):
+                return {
+                    'schema': 'gbre.observation.v1',
+                    'side': 'original',
+                    'clock': {'emulator_frame': 17},
+                    'flow': {'phase': 'Playing'},
+                    'player': {'world_x': 42},
+                }
+
+        live = LiveScenarioSession(
+            FakeService(), passthrough_observation=True,
+        )
+        observation = live.observe()
+        self.assertEqual(observation['flow']['phase'], 'Playing')
+        self.assertEqual(observation['player']['world_x'], 42)
+        self.assertEqual(observation['events'], [])
+
 
 class MgbaLiveIntegrationTest(unittest.TestCase):
     def test_live_pause_step_patch_framebuffer_and_state(self):

@@ -61,8 +61,9 @@ def load_patches(path: Path | None) -> list[ScheduledPatch]:
 
 
 class LiveScenarioSession:
-    def __init__(self, service: MgbaService):
+    def __init__(self, service: MgbaService, *, passthrough_observation: bool = False):
         self.service = service
+        self.passthrough_observation = passthrough_observation
         self.scenario: Scenario | None = None
         self.strict_inputs: list[StrictInput] = []
         self.event_inputs: list[EventInput] = []
@@ -159,6 +160,11 @@ class LiveScenarioSession:
         if (self.last_original is not None and
                 self.last_original['clock']['emulator_frame'] == frame):
             return self.last_original
+        if self.passthrough_observation:
+            observation = raw
+            observation.setdefault('events', [])
+            self.last_original = observation
+            return observation
         if raw['game']['state'] in MENU_STATES:
             self.seen_menu = True
         observation = normalize_original(raw, seen_menu=self.seen_menu)

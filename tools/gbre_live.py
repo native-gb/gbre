@@ -52,11 +52,15 @@ def scenario_json(scenario) -> dict[str, Any]:
 
 
 class Coordinator:
-    def __init__(self, gbre_root: Path, scenario_root: Path, rom: Path):
+    def __init__(self, gbre_root: Path, scenario_root: Path, rom: Path,
+                 adapter: Path | None = None,
+                 passthrough_observation: bool = False):
         self.gbre_root = gbre_root.resolve()
         self.scenarios = discover_scenarios(scenario_root)
         self.rom = rom.resolve()
         self.scenario_root = scenario_root.resolve()
+        self.adapter = adapter.resolve() if adapter is not None else None
+        self.passthrough_observation = passthrough_observation
         self.service: MgbaService | None = None
         self.live: LiveScenarioSession | None = None
         self.current_scenario = None
@@ -65,9 +69,14 @@ class Coordinator:
     def start_original(self, sha1: str) -> None:
         if self.service is not None:
             return
-        self.service = MgbaService(self.gbre_root, self.rom, sha1)
+        self.service = MgbaService(
+            self.gbre_root, self.rom, sha1, adapter=self.adapter,
+        )
         self.service.start()
-        self.live = LiveScenarioSession(self.service)
+        self.live = LiveScenarioSession(
+            self.service,
+            passthrough_observation=self.passthrough_observation,
+        )
 
     def handle(self, request: dict[str, Any]) -> dict[str, Any]:
         command = request.get('command')
@@ -182,9 +191,15 @@ def main() -> int:
     parser.add_argument('--gbre-root', type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument('--scenario-root', type=Path, required=True)
     parser.add_argument('--rom', type=Path, required=True)
+    parser.add_argument('--adapter', type=Path)
+    parser.add_argument('--passthrough-observation', action='store_true')
     parser.add_argument('--stdio', action='store_true', required=True)
     arguments = parser.parse_args()
-    return serve(Coordinator(arguments.gbre_root, arguments.scenario_root, arguments.rom))
+    return serve(Coordinator(
+        arguments.gbre_root, arguments.scenario_root, arguments.rom,
+        adapter=arguments.adapter,
+        passthrough_observation=arguments.passthrough_observation,
+    ))
 
 
 if __name__ == '__main__':

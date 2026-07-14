@@ -11,7 +11,7 @@ Build native-gb-tetris and the pinned headless mGBA once, then validate and run
 the corpus:
 
 ```bash
-cd /home/vega/Coding/GameDev/native-gb-tetris
+cd ../native-gb-tetris
 cmake --build --preset dev
 
 cd ../GBRE

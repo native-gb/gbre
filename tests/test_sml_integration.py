@@ -76,7 +76,12 @@ class SmlResearchIntegrationTest(unittest.TestCase):
         scenarios = discover_scenarios(scenario_root)
         self.assertEqual(
             [scenario.id for scenario in scenarios],
-            ['sml.damage-restart', 'sml.title-start', 'sml.walk-jump-camera'],
+            [
+                'sml.damage-restart',
+                'sml.opening-obstacles',
+                'sml.title-start',
+                'sml.walk-jump-camera',
+            ],
         )
         for scenario in scenarios:
             self.assertEqual(scenario.rom_sha1, self.manifest.sha1)
