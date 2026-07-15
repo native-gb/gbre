@@ -81,6 +81,7 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 'sml.block-hit-fly',
                 'sml.block-hit-gao',
                 'sml.block-hit-nokobon',
+                'sml.bonus-3up',
                 'sml.breakable-block',
                 'sml.chibibo-stomp',
                 'sml.coin-rollover',
