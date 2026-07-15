@@ -42,8 +42,8 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 self.assertEqual(row['source_text'], '')
 
         self.assertEqual(sum(totals.values()), 65_105)
-        self.assertEqual(totals['rgbds_assembly'], 23_177)
-        self.assertEqual(totals['rgbds_incbin'], 41_790)
+        self.assertEqual(totals['rgbds_assembly'], 23_263)
+        self.assertEqual(totals['rgbds_incbin'], 41_704)
         self.assertEqual(totals['rgbds_reserved'], 138)
 
     def test_rom_map_is_gapless_and_bank_two_addresses_are_linear(self):
@@ -126,6 +126,9 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 'sml.superball-nokobon',
                 'sml.time-up',
                 'sml.timer-thresholds',
+                'sml.title-attract',
+                'sml.title-demo-interrupt',
+                'sml.title-level-select',
                 'sml.title-start',
                 'sml.top-score-preserved',
                 'sml.vertical-platform-carry',
