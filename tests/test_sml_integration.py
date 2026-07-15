@@ -136,6 +136,7 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 'sml.walk-jump-camera',
                 'sml.world-1-2-death-restart',
                 'sml.world-1-2-demo',
+                'sml.world-1-2-pit-route',
             ],
         )
         for scenario in scenarios:
