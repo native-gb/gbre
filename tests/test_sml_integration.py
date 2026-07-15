@@ -106,6 +106,7 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 'sml.nokobon-stomp-bomb',
                 'sml.opening-obstacles',
                 'sml.pipe-room',
+                'sml.pipe-room-death',
                 'sml.pit-death',
                 'sml.plain-block-small',
                 'sml.second-pipe-room',
