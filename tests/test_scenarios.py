@@ -56,6 +56,27 @@ profile = "transitions"
             self.assertEqual(scenario.original.input.path, (root / 'input.csv').resolve())
             self.assertEqual(scenario.tags, ('gameplay',))
 
+    def test_parses_landmark_relative_trace_window(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            path = self.fixture(root, extra='''trace_landmark = "playing"
+trace_frames = 120
+
+[[landmarks]]
+id = "playing"
+condition = "flow.phase == Playing"
+''')
+            scenario = load_scenario(path)
+            self.assertEqual(scenario.trace_landmark, 'playing')
+            self.assertEqual(scenario.trace_frames, 120)
+
+            path.write_text(path.read_text().replace(
+                'trace_landmark = "playing"',
+                'trace_landmark = "missing"',
+            ))
+            with self.assertRaisesRegex(ValueError, 'does not name a landmark'):
+                load_scenario(path)
+
     def test_rejects_unknown_schema_and_bad_reference(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

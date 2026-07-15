@@ -71,6 +71,8 @@ class Scenario:
     rom_sha1: str
     frames: int
     comparison_profile: str
+    trace_landmark: str
+    trace_frames: int
     original: ScenarioSide
     native: ScenarioSide
     fields: tuple[ComparisonField, ...]
@@ -232,6 +234,10 @@ def load_scenario(path: Path, *, allow_temporary: bool = False) -> Scenario:
     sha1 = str(rom.get('sha1', '')).lower()
     if not re.fullmatch(r'[0-9a-f]{40}', sha1):
         raise ValueError(f'{path}: rom.sha1 must be a lowercase SHA-1')
+    trace_landmark = str(comparison.get('trace_landmark', '')).strip()
+    trace_frames = int(comparison.get('trace_frames', 0))
+    if trace_frames < 0:
+        raise ValueError(f'{path}: comparison.trace_frames cannot be negative')
     scenario = Scenario(
         path=path,
         schema_version=1,
@@ -244,12 +250,19 @@ def load_scenario(path: Path, *, allow_temporary: bool = False) -> Scenario:
         rom_sha1=sha1,
         frames=frames,
         comparison_profile=str(comparison.get('profile', 'fields')),
+        trace_landmark=trace_landmark,
+        trace_frames=trace_frames,
         original=_side(directory, raw.get('original'), 'original'),
         native=_side(directory, raw.get('native'), 'native'),
         fields=_comparison_fields(comparison.get('fields')),
         landmarks=_landmarks(raw.get('landmarks')),
         parameters=_parameters(raw.get('parameters')),
     )
+    landmark_ids = {landmark.id for landmark in scenario.landmarks}
+    if trace_landmark and trace_landmark not in landmark_ids:
+        raise ValueError(
+            f'{path}: comparison.trace_landmark does not name a landmark'
+        )
     validate_scenario_files(scenario)
     if scenario.kind == 'parameterized' and not scenario.parameters:
         raise ValueError(f'{path}: parameterized scenario requires parameters')

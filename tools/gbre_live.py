@@ -41,6 +41,8 @@ def scenario_json(scenario) -> dict[str, Any]:
         'subsystems': list(scenario.subsystems),
         'frames': scenario.frames,
         'comparison_profile': scenario.comparison_profile,
+        'trace_landmark': scenario.trace_landmark,
+        'trace_frames': scenario.trace_frames,
         'fields': [field.__dict__ for field in scenario.fields],
         'landmarks': [landmark.__dict__ for landmark in scenario.landmarks],
         'native_setup': str(scenario.native.setup) if scenario.native.setup else '',

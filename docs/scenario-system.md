@@ -100,6 +100,9 @@ adapter = "tetris"
 
 [comparison]
 profile = "fields"
+# Optional for exact-trace consumers:
+trace_landmark = "gameplay"
+trace_frames = 120
 
 [[comparison.fields]]
 path = "game.score"
@@ -204,6 +207,13 @@ Comparison policies are explicit per field:
 Available transforms are `identity`, `music_id_to_index`, `truthy`, and
 `lower`. A missing path or unknown transform is a diagnostic, not a silent
 skip. Results report the path, policy, original value, native value, and note.
+
+An exact-trace consumer may use `comparison.trace_landmark` to align the two
+sides at independently discovered instances of the same named landmark.
+`comparison.trace_frames` bounds the compared window from that point. This is
+for real initialization or loading-duration differences; it does not permit an
+arbitrary frame offset inside gameplay. The named landmark must exist in the
+manifest, and every trace field still compares tick-for-tick after alignment.
 
 ## Clock and slowdown policy
 
