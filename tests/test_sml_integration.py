@@ -137,6 +137,7 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 'sml.world-1-2-death-restart',
                 'sml.world-1-2-demo',
                 'sml.world-1-2-pit-route',
+                'sml.world-1-2-platform-chain-route',
             ],
         )
         for scenario in scenarios:
