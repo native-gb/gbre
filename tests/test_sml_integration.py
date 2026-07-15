@@ -134,6 +134,7 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 'sml.top-score-preserved',
                 'sml.vertical-platform-carry',
                 'sml.walk-jump-camera',
+                'sml.world-1-2-death-restart',
                 'sml.world-1-2-demo',
             ],
         )
