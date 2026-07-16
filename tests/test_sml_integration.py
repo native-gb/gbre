@@ -105,6 +105,7 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 'sml.invincible-chibibo',
                 'sml.invincible-gao',
                 'sml.invincible-second-pipe-room',
+                'sml.live-title-play',
                 'sml.multi-coin',
                 'sml.nokobon-script',
                 'sml.nokobon-stomp-bomb',
@@ -117,6 +118,7 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 'sml.plain-block-small',
                 'sml.second-pipe-room',
                 'sml.software-reset',
+                'sml.special-block-actor',
                 'sml.star',
                 'sml.super-damage',
                 'sml.super-flower',
@@ -132,6 +134,8 @@ class SmlResearchIntegrationTest(unittest.TestCase):
                 'sml.title-level-select',
                 'sml.title-start',
                 'sml.top-score-preserved',
+                'sml.vehicle-marine-pop',
+                'sml.vehicle-sky-pop',
                 'sml.vertical-platform-carry',
                 'sml.walk-jump-camera',
                 'sml.world-1-2-completion-route',
@@ -147,7 +151,11 @@ class SmlResearchIntegrationTest(unittest.TestCase):
             self.assertEqual(scenario.rom_sha1, self.manifest.sha1)
             self.assertEqual(scenario.original.adapter, 'sml')
             self.assertEqual(scenario.native.adapter, 'sml')
-            self.assertGreater(len(load_strict_inputs(scenario.original.input.path)), 1)
+            input_count = len(load_strict_inputs(scenario.original.input.path))
+            if 'interactive' in scenario.tags:
+                self.assertGreater(input_count, 0)
+            else:
+                self.assertGreater(input_count, 1)
 
 
 if __name__ == '__main__':
