@@ -106,6 +106,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.route23_badge_checkpoints',
                 'pokemon_red.victory_road_campaign',
                 'pokemon_red.elite_four_champion_campaign',
+                'pokemon_red.hall_of_fame_and_credits',
                 'pokemon_red.viridian_city_old_man',
                 'pokemon_red.ordinary_map_item_pickup',
                 'pokemon_red.viridian_forest_trainers',
@@ -206,8 +207,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 1_548)
         self.assertEqual(status_bytes['excluded'], 311_296)
-        self.assertEqual(status_bytes['verified'], 242_539)
-        self.assertEqual(status_bytes['unknown'], 493_193)
+        self.assertEqual(status_bytes['verified'], 244_749)
+        self.assertEqual(status_bytes['unknown'], 490_983)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -241,6 +242,9 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'data/events/prizes.asm',
                 'data/events/prize_mon_levels.asm',
                 'data/events/slot_machine_wheels.asm',
+                'data/credits/credits_mons.asm',
+                'data/credits/credits_order.asm',
+                'data/credits/credits_text.asm',
                 'data/events/trades.asm',
                 'data/moves/moves.asm',
                 'data/moves/names.asm',
@@ -295,6 +299,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'engine/overworld/push_boulder.asm',
                 'engine/slots/game_corner_slots.asm',
                 'engine/slots/game_corner_slots2.asm',
+                'engine/movie/hall_of_fame.asm',
             }
             implemented_scripts = {
                 'scripts/Daycare.asm',
@@ -457,6 +462,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'scripts/VictoryRoad1F.asm',
                 'scripts/VictoryRoad2F.asm',
                 'scripts/VictoryRoad3F.asm',
+                'scripts/HallOfFame.asm',
             }
             if (
                 row['source_file'].startswith('data/pokemon/base_stats/') or
