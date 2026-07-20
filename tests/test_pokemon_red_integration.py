@@ -166,6 +166,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.builtin_text_execution',
                 'pokemon_red.mart_execution',
                 'pokemon_red.pc_systems',
+                'pokemon_red.cable_club_reception',
                 'pokemon_red.rgbfix_padding',
             ],
         )
@@ -417,6 +418,39 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertIn('DexRatingsTable', pc.asm_symbols)
         self.assertIn('OpenPokemonCenterPC', pc.asm_symbols)
 
+    def test_cable_club_reception_ranges_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        reception = units['pokemon_red.cable_club_reception']
+        self.assertEqual(
+            {
+                (0x05C0A, 0x05D52),
+                (0x05D97, 0x05DB5),
+                (0x062FF, 0x06326),
+                (0x06334, 0x06346),
+                (0x06428, 0x06448),
+                (0x071C5, 0x072EA),
+                (0x19C94, 0x19C95),
+                (0x44276, 0x44277),
+                (0x488C6, 0x488C7),
+                (0x49375, 0x49376),
+                (0x493D3, 0x493D4),
+                (0x5C60C, 0x5C60D),
+                (0x5C653, 0x5C654),
+                (0x5C8E8, 0x5C8E9),
+                (0x5C9A8, 0x5C9A9),
+                (0x5D54E, 0x5D54F),
+                (0x7507C, 0x7507D),
+                (0x75E45, 0x75E46),
+                (0x8A3D0, 0x8A425),
+                (0xA292B, 0xA2A37),
+                (0xA4000, 0xA403C),
+            },
+            {(item.start, item.end) for item in reception.rom_ranges},
+        )
+        self.assertIn('LinkMenu', reception.asm_symbols)
+        self.assertIn('CableClubNPC', reception.asm_symbols)
+        self.assertIn('TradeCenterPlayerWarp', reception.asm_symbols)
+
     def test_exact_source_map_classifies_every_linker_emitted_byte(self):
         path = POKEMON_RED_RE / 'analysis/pokemon-red-ue-source-map.csv'
         if not path.is_file():
@@ -459,8 +493,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 311_330)
-        self.assertEqual(status_bytes['verified'], 256_354)
-        self.assertEqual(status_bytes['unknown'], 480_892)
+        self.assertEqual(status_bytes['verified'], 257_100)
+        self.assertEqual(status_bytes['unknown'], 480_146)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
