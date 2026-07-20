@@ -171,6 +171,34 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 text = (root / target.path).resolve().read_text()
                 self.assertEqual(text.count(target.anchor), 1, unit.id)
 
+    def test_bookshelf_policy_and_runtime_ranges_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        world = units['pokemon_red.world_tile_policies']
+        field = units['pokemon_red.field_interaction_and_presentation']
+        self.assertIn(
+            (0x0FB8B, 0x0FBBF),
+            {(item.start, item.end) for item in world.rom_ranges},
+        )
+        self.assertIn(
+            'data/tilesets/bookshelf_tile_ids.asm',
+            {item.path for item in world.source_mappings},
+        )
+        field_ranges = {(item.start, item.end) for item in field.rom_ranges}
+        self.assertIn((0x03EB5, 0x03EF5), field_ranges)
+        self.assertIn((0x0FB50, 0x0FB8B), field_ranges)
+        self.assertIn((0x0FBBF, 0x0FC4A), field_ranges)
+        self.assertEqual(
+            {
+                'engine/events/hidden_events/bookshelves.asm',
+                'engine/events/hidden_events/indigo_plateau_statues.asm',
+                'engine/events/hidden_events/book_or_sculpture.asm',
+                'engine/events/hidden_events/elevator.asm',
+                'engine/events/hidden_events/town_map.asm',
+                'engine/events/hidden_events/pokemon_stuff.asm',
+            },
+            {item.path for item in field.source_mappings},
+        )
+
     def test_exact_source_map_classifies_every_linker_emitted_byte(self):
         path = POKEMON_RED_RE / 'analysis/pokemon-red-ue-source-map.csv'
         if not path.is_file():
@@ -213,8 +241,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 311_296)
-        self.assertEqual(status_bytes['verified'], 250_350)
-        self.assertEqual(status_bytes['unknown'], 486_930)
+        self.assertEqual(status_bytes['verified'], 250_624)
+        self.assertEqual(status_bytes['unknown'], 486_656)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -273,6 +301,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'data/trainers/pic_pointers_money.asm',
                 'data/tilesets/collision_tile_ids.asm',
                 'data/tilesets/bike_riding_tilesets.asm',
+                'data/tilesets/bookshelf_tile_ids.asm',
                 'data/tilesets/door_tile_ids.asm',
                 'data/tilesets/dungeon_tilesets.asm',
                 'data/tilesets/escape_rope_tilesets.asm',
@@ -301,6 +330,12 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'data/events/hidden_events.asm',
                 'engine/events/vending_machine.asm',
                 'engine/events/hidden_items.asm',
+                'engine/events/hidden_events/book_or_sculpture.asm',
+                'engine/events/hidden_events/bookshelves.asm',
+                'engine/events/hidden_events/elevator.asm',
+                'engine/events/hidden_events/indigo_plateau_statues.asm',
+                'engine/events/hidden_events/pokemon_stuff.asm',
+                'engine/events/hidden_events/town_map.asm',
                 'engine/events/hidden_events/safari_game.asm',
                 'engine/events/hidden_events/cinnabar_gym_quiz.asm',
                 'engine/overworld/daycare_exp.asm',
