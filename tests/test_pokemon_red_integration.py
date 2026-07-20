@@ -107,6 +107,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.victory_road_campaign',
                 'pokemon_red.elite_four_champion_campaign',
                 'pokemon_red.hall_of_fame_and_credits',
+                'pokemon_red.original_save_codec',
                 'pokemon_red.viridian_city_old_man',
                 'pokemon_red.ordinary_map_item_pickup',
                 'pokemon_red.viridian_forest_trainers',
@@ -207,8 +208,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 1_548)
         self.assertEqual(status_bytes['excluded'], 311_296)
-        self.assertEqual(status_bytes['verified'], 244_749)
-        self.assertEqual(status_bytes['unknown'], 490_983)
+        self.assertEqual(status_bytes['verified'], 245_431)
+        self.assertEqual(status_bytes['unknown'], 490_301)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -514,12 +515,14 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         trainer_entries = (
             native / 'src/generated/map_trainer_entry_profile.inc'
         )
+        save_states = native / 'src/generated/save_map_state_profile.inc'
         if (
             not identity.is_file() or not layouts.is_file() or
             not text_resources.is_file() or not text_tables.is_file() or
             not text_entries.is_file() or not map_scripts.is_file() or
             not script_tables.is_file() or not script_entries.is_file() or
-            not trainer_tables.is_file() or not trainer_entries.is_file()
+            not trainer_tables.is_file() or not trainer_entries.is_file() or
+            not save_states.is_file()
         ):
             self.skipTest('public Pokemon Red generated profiles are absent')
 
@@ -535,6 +538,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             generated_script_entries = temporary / 'script-entries.inc'
             generated_trainer_tables = temporary / 'trainer-tables.inc'
             generated_trainer_entries = temporary / 'trainer-entries.inc'
+            generated_save_states = temporary / 'save-states.inc'
             subprocess.run(
                 [
                     sys.executable,
@@ -627,6 +631,21 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             self.assertEqual(
                 generated_trainer_entries.read_bytes(), trainer_entries.read_bytes()
             )
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(POKEMON_RED_RE / 'scripts/build-save-profile.py'),
+                    '--reference', str(POKEMON_RED_RE / 'reference/pokered'),
+                    '--sym', str(POKEMON_RED_RE / 'reference/pokered/pokered.sym'),
+                    '--output', str(generated_save_states),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(
+                generated_save_states.read_bytes(), save_states.read_bytes()
+            )
 
         self.assertEqual(identity.read_text().count('{"'), 248)
         self.assertEqual(layouts.read_text().count('{"'), 185)
@@ -644,6 +663,9 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(trainer_tables.read_text().count('{"'), 68)
         self.assertEqual(trainer_entries.read_text().count('{0x'), 321)
         self.assertIn('Route3TrainerHeaders', trainer_tables.read_text())
+        self.assertEqual(save_states.read_text().count('0x'), 248)
+        self.assertEqual(save_states.read_text().count('0xFFFF'), 150)
+        self.assertIn('PALLET_TOWN: wPalletTownCurScript', save_states.read_text())
 
 
 if __name__ == '__main__':
