@@ -99,6 +99,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.pallet_town_script',
                 'pokemon_red.pallet_town_movement',
                 'pokemon_red.ordinary_map_warps',
+                'pokemon_red.dungeon_warps',
                 'pokemon_red.oaks_lab_entry',
                 'pokemon_red.viridian_mart_parcel',
                 'pokemon_red.oaks_parcel_and_pokedex',
@@ -291,6 +292,29 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             }.issubset(ranges)
         )
 
+    def test_dungeon_warp_ranges_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        dungeon = units['pokemon_red.dungeon_warps']
+        self.assertEqual(
+            {
+                (0x6346, 0x638E),
+                (0x63BF, 0x63D8),
+                (0x63D8, 0x6420),
+                (0x44846, 0x4484B),
+                (0x449F9, 0x449FE),
+                (0x4636D, 0x46372),
+                (0x464A9, 0x464AE),
+                (0x465F6, 0x465FB),
+                (0x46981, 0x469A0),
+                (0x52254, 0x5225B),
+            },
+            {(item.start, item.end) for item in dungeon.rom_ranges},
+        )
+        self.assertIn(
+            'DungeonWarpList',
+            dungeon.asm_symbols,
+        )
+
     def test_exact_source_map_classifies_every_linker_emitted_byte(self):
         path = POKEMON_RED_RE / 'analysis/pokemon-red-ue-source-map.csv'
         if not path.is_file():
@@ -333,8 +357,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 311_296)
-        self.assertEqual(status_bytes['verified'], 251_912)
-        self.assertEqual(status_bytes['unknown'], 485_368)
+        self.assertEqual(status_bytes['verified'], 252_067)
+        self.assertEqual(status_bytes['unknown'], 485_213)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
