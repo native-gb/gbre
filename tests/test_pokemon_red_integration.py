@@ -55,6 +55,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.resident_collision_cells',
                 'pokemon_red.world_tile_policies',
                 'pokemon_red.ordinary_field_movement',
+                'pokemon_red.out_of_battle_poison',
                 'pokemon_red.ordinary_wild_encounters',
                 'pokemon_red.wild_battle_startup',
                 'pokemon_red.ordinary_wild_battle_turns',
@@ -199,6 +200,23 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             {item.path for item in field.source_mappings},
         )
 
+    def test_out_of_battle_poison_ranges_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        poison = units['pokemon_red.out_of_battle_poison']
+        self.assertEqual(
+            {
+                (0x05ED, 0x05F1),
+                (0x0620, 0x062C),
+                (0x0C33E, 0x0C341),
+                (0x0C69C, 0x0C754),
+            },
+            {(item.start, item.end) for item in poison.rom_ranges},
+        )
+        self.assertEqual(
+            {'engine/events/poison.asm'},
+            {item.path for item in poison.source_mappings},
+        )
+
     def test_exact_source_map_classifies_every_linker_emitted_byte(self):
         path = POKEMON_RED_RE / 'analysis/pokemon-red-ue-source-map.csv'
         if not path.is_file():
@@ -241,8 +259,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 311_296)
-        self.assertEqual(status_bytes['verified'], 250_624)
-        self.assertEqual(status_bytes['unknown'], 486_656)
+        self.assertEqual(status_bytes['verified'], 250_827)
+        self.assertEqual(status_bytes['unknown'], 486_453)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -321,6 +339,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'engine/events/hidden_events/vermilion_gym_trash.asm',
                 'engine/events/oaks_aide.asm',
                 'engine/events/pokecenter.asm',
+                'engine/events/poison.asm',
                 'engine/events/prize_menu.asm',
                 'engine/events/set_blackout_map.asm',
                 'engine/events/card_key.asm',
