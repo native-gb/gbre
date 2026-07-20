@@ -104,6 +104,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.route22_rival_encounters',
                 'pokemon_red.route22_boulder_badge_gate',
                 'pokemon_red.route23_badge_checkpoints',
+                'pokemon_red.victory_road_campaign',
                 'pokemon_red.viridian_city_old_man',
                 'pokemon_red.ordinary_map_item_pickup',
                 'pokemon_red.viridian_forest_trainers',
@@ -204,8 +205,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 1_548)
         self.assertEqual(status_bytes['excluded'], 311_296)
-        self.assertEqual(status_bytes['verified'], 240_008)
-        self.assertEqual(status_bytes['unknown'], 495_724)
+        self.assertEqual(status_bytes['verified'], 240_891)
+        self.assertEqual(status_bytes['unknown'], 494_841)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -452,6 +453,9 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'scripts/Route22.asm',
                 'scripts/Route22Gate.asm',
                 'scripts/Route23.asm',
+                'scripts/VictoryRoad1F.asm',
+                'scripts/VictoryRoad2F.asm',
+                'scripts/VictoryRoad3F.asm',
             }
             if (
                 row['source_file'].startswith('data/pokemon/base_stats/') or
