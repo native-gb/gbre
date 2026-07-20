@@ -163,6 +163,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.cinnabar_gym_blaine',
                 'pokemon_red.viridian_gym_giovanni',
                 'pokemon_red.field_interaction_and_presentation',
+                'pokemon_red.builtin_text_execution',
                 'pokemon_red.rgbfix_padding',
             ],
         )
@@ -315,6 +316,35 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             dungeon.asm_symbols,
         )
 
+    def test_builtin_nurse_ranges_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        nurses = units['pokemon_red.builtin_text_execution']
+        self.assertEqual(
+            {
+                (0x06FE9, 0x07078),
+                (0x19C89, 0x19C8A),
+                (0x4426B, 0x4426C),
+                (0x488C7, 0x488C8),
+                (0x492E1, 0x492E2),
+                (0x493C8, 0x493C9),
+                (0x5C595, 0x5C596),
+                (0x5C654, 0x5C655),
+                (0x5C8E9, 0x5C8EA),
+                (0x5C99D, 0x5C99E),
+                (0x5D543, 0x5D544),
+                (0x75071, 0x75072),
+                (0x75E3A, 0x75E3B),
+            },
+            {(item.start, item.end) for item in nurses.rom_ranges},
+        )
+        self.assertEqual(
+            {
+                'engine/events/pokecenter.asm',
+                'macros/scripts/text.asm',
+            },
+            {item.path for item in nurses.source_mappings},
+        )
+
     def test_exact_source_map_classifies_every_linker_emitted_byte(self):
         path = POKEMON_RED_RE / 'analysis/pokemon-red-ue-source-map.csv'
         if not path.is_file():
@@ -357,8 +387,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 311_296)
-        self.assertEqual(status_bytes['verified'], 252_067)
-        self.assertEqual(status_bytes['unknown'], 485_213)
+        self.assertEqual(status_bytes['verified'], 252_072)
+        self.assertEqual(status_bytes['unknown'], 485_208)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
