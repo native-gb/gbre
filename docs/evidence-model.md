@@ -20,8 +20,9 @@ range has a name or can be reassembled.
 ## Stable semantic units
 
 `analysis/<game>-manifest.json` is the hand-maintained source of truth. A unit
-has a stable ID, one or more ROM ranges, optional source symbols, optional
-native anchors, status axes, and notes. Relationships are intentionally
+has a stable ID, explicit ROM ranges and/or exact-rebuild source mappings,
+optional source symbols, optional native anchors, status axes, and notes.
+Relationships are intentionally
 many-to-many: one native function may replace several original routines, and
 one original routine may become several native functions.
 
@@ -45,6 +46,18 @@ and semantic mapping confidence remain separate. Consequently, bytes marked
 Ranges can also record a disposition: `runtime`, `hardware_only`,
 `proven_dead`, `unused_data`, or `intentional_change`. Excluded data remains in
 the gapless inventory instead of disappearing from coverage.
+
+For content-heavy RGBDS projects, a unit may use `source_mappings` with an
+exact relative path or shell-style path pattern. A source mapping carries the
+same relationship, confidence, claim, and disposition as a ROM range. It is
+applied only to byte-exact source-map spans whose `source_file` matches, so a
+family such as `data/maps/objects/*.asm` can remain auditable without copying
+hundreds of scattered generated offsets into the manifest. Explicit ROM ranges
+take precedence, and ambiguous source patterns are rejected rather than picked
+arbitrarily. Without an exact source map, source mappings make no coverage
+claim. An optional `evidence_kind` further limits a mapping to spans such as
+`rgbds_incbin`; this permits a mixed assembly file's binary payloads to advance
+without making a claim about its adjacent executable code.
 
 ## Generic evidence CSV
 

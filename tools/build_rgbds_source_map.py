@@ -18,6 +18,7 @@ ROM_SECTION_RE = re.compile(
 )
 BANK_RE = re.compile(r'\bBANK\[\$?([0-9A-F]+)\]', re.IGNORECASE)
 MARKER_SYMBOL_RE = re.compile(r'(?:^|\.)GBRE_(?:ROOT_)?([0-9A-F]+)$')
+INCLUDE_RE = re.compile(r'^\s*INCLUDE\s+"([^"]+)"', re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -76,6 +77,16 @@ def marker_line(
     return f'{prefix}{marker_id:08X}::\n'
 
 
+def continued_line_numbers(lines: list[str]) -> set[int]:
+    result = set()
+    previous_continues = False
+    for line_number, line in enumerate(lines, 1):
+        if previous_continues:
+            result.add(line_number)
+        previous_continues = code_without_comment(line).endswith('\\')
+    return result
+
+
 def add_marker(
     output: list[str],
     definitions: dict[int, MarkerDefinition],
@@ -104,22 +115,41 @@ def instrument_source(
     relative_path: str,
     definitions: dict[int, MarkerDefinition],
     next_marker_id: int,
+    forced_rom_lines: set[int] | None = None,
 ) -> int:
     original_lines = path.read_text().splitlines(keepends=True)
+    continuation_lines = continued_line_numbers(original_lines)
     output = []
     current_section = ""
     current_bank: int | None = None
     in_rom = False
     macro_depth = 0
     repeat_depth = 0
+    load_depth = 0
 
     for line_number, line in enumerate(original_lines, 1):
         code = code_without_comment(line)
         upper = code.upper()
 
+        if line_number in continuation_lines:
+            output.append(line)
+            continue
+
+        # LOAD blocks emit bytes into the current ROM section while assigning
+        # their labels addresses in another address space (typically HRAM).
+        # Symbols inserted inside the block therefore cannot identify ROM
+        # offsets. Attribute the entire emitted block to its LOAD directive.
+        if load_depth:
+            output.append(line)
+            if re.match(r'^LOAD(?:\s|$)', upper):
+                load_depth += 1
+            if re.match(r'^ENDL(?:\s|$)', upper):
+                load_depth -= 1
+            continue
+
         if repeat_depth:
             output.append(line)
-            if re.match(r'^REPT(?:\s|$)', upper):
+            if re.match(r'^(?:REPT|FOR)(?:\s|$)', upper):
                 repeat_depth += 1
             if re.match(r'^ENDR(?:\s|$)', upper):
                 repeat_depth -= 1
@@ -138,7 +168,26 @@ def instrument_source(
             output.append(line)
             continue
 
-        if in_rom and re.match(r'^REPT(?:\s|$)', upper):
+        line_is_rom = in_rom or (
+            forced_rom_lines is not None and line_number in forced_rom_lines
+        )
+
+        if line_is_rom and re.match(r'^LOAD(?:\s|$)', upper):
+            next_marker_id = add_marker(
+                output,
+                definitions,
+                next_marker_id,
+                current_bank,
+                relative_path,
+                line_number,
+                current_section,
+                code,
+            )
+            output.append(line)
+            load_depth = 1
+            continue
+
+        if line_is_rom and re.match(r'^(?:REPT|FOR)(?:\s|$)', upper):
             next_marker_id = add_marker(
                 output,
                 definitions,
@@ -183,7 +232,7 @@ def instrument_source(
             output.append(line)
             continue
 
-        if in_rom and code:
+        if line_is_rom and code:
             next_marker_id = add_marker(
                 output,
                 definitions,
@@ -200,8 +249,111 @@ def instrument_source(
     return next_marker_id
 
 
+def resolve_include(source_root: Path, parent: Path, include_name: str) -> Path:
+    root_relative = source_root / include_name
+    if root_relative.is_file():
+        return root_relative
+
+    parent_relative = parent.parent / include_name
+    if parent_relative.is_file():
+        return parent_relative
+
+    raise ValueError(
+        f'cannot resolve include {include_name!r} referenced by '
+        f'{parent.relative_to(source_root)}'
+    )
+
+
+def trace_rom_lines(
+    source_root: Path,
+    path: Path,
+    in_rom: bool,
+    result: dict[Path, set[int]],
+    stack: tuple[Path, ...],
+) -> bool:
+    if path in stack:
+        chain = ' -> '.join(
+            item.relative_to(source_root).as_posix() for item in (*stack, path)
+        )
+        raise ValueError(f'cyclic RGBDS include chain: {chain}')
+
+    macro_depth = 0
+    repeat_depth = 0
+    lines = path.read_text().splitlines()
+    continuation_lines = continued_line_numbers(lines)
+    for line_number, line in enumerate(lines, 1):
+        code = code_without_comment(line)
+        upper = code.upper()
+
+        if line_number in continuation_lines:
+            if in_rom and code:
+                result.setdefault(path, set()).add(line_number)
+            continue
+
+        if repeat_depth:
+            if in_rom and code:
+                result.setdefault(path, set()).add(line_number)
+            if re.match(r'^REPT(?:\s|$)', upper):
+                repeat_depth += 1
+            if re.match(r'^ENDR(?:\s|$)', upper):
+                repeat_depth -= 1
+            continue
+
+        if macro_depth:
+            if re.search(r'(^|\s)MACRO($|\s)', upper):
+                macro_depth += 1
+            if re.match(r'^ENDM(?:\s|$)', upper):
+                macro_depth -= 1
+            continue
+
+        if re.search(r'(^|\s)MACRO($|\s)', upper):
+            macro_depth = 1
+            continue
+
+        section_match = ROM_SECTION_RE.match(code)
+        if section_match:
+            in_rom = True
+        elif re.match(r'^\s*SECTION(?:\s|$)', code, re.IGNORECASE):
+            in_rom = False
+
+        if in_rom and code:
+            result.setdefault(path, set()).add(line_number)
+
+        if in_rom and re.match(r'^REPT(?:\s|$)', upper):
+            repeat_depth = 1
+            continue
+
+        include_match = INCLUDE_RE.match(code)
+        if not include_match:
+            continue
+        included = resolve_include(source_root, path, include_match[1])
+        in_rom = trace_rom_lines(
+            source_root,
+            included,
+            in_rom,
+            result,
+            (*stack, path),
+        )
+
+    return in_rom
+
+
+def discover_rom_lines(
+    source_root: Path, object_sources: list[str]
+) -> dict[Path, set[int]]:
+    result: dict[Path, set[int]] = {}
+    for source_name in object_sources:
+        source = source_root / source_name
+        if not source.is_file():
+            raise ValueError(f'RGBDS source root does not exist: {source_name}')
+        trace_rom_lines(source_root, source, False, result, ())
+    return result
+
+
 def copy_and_instrument(
-    reference: Path, build_dir: Path
+    reference: Path,
+    build_dir: Path,
+    include_roots: list[str] | None = None,
 ) -> tuple[Path, dict[int, MarkerDefinition]]:
     source_dir = build_dir / "instrumented-source"
     if source_dir.exists():
@@ -211,14 +363,20 @@ def copy_and_instrument(
         source_dir,
         ignore=shutil.ignore_patterns('.git', '*.o', '*.gb', '*.map', '*.sym'),
     )
+    forced_lines = (
+        discover_rom_lines(source_dir, include_roots) if include_roots else {}
+    )
     definitions: dict[int, MarkerDefinition] = {}
     next_marker_id = 0
-    for path in sorted(source_dir.rglob('*.asm')):
+    source_paths = set(source_dir.rglob('*.asm'))
+    source_paths.update(forced_lines)
+    for path in sorted(source_paths):
         next_marker_id = instrument_source(
             path,
             path.relative_to(source_dir).as_posix(),
             definitions,
             next_marker_id,
+            forced_lines.get(path),
         )
     return source_dir, definitions
 
@@ -336,7 +494,8 @@ def make_spans(markers: list[Marker], sections: list[Section]) -> list[SourceSpa
         section_markers = [
             item
             for item in markers
-            if item.section == section.name and item.bank == section.bank
+            if (not item.section or item.section == section.name)
+            and item.bank == section.bank
         ]
         by_address = {}
         for marker in section_markers:
@@ -407,13 +566,7 @@ def write_csv(
             cpu_base = 0 if span.bank == 0 else 0x4000
             cpu_start = cpu_base + span.start - bank_base
             cpu_end = cpu_base + span.end - bank_base
-            source_token = span.source_text.split(maxsplit=1)[0].upper()
-            if source_token == 'INCBIN':
-                evidence_kind = 'rgbds_incbin'
-            elif source_token in ('DS', 'RB', 'RW', 'RL'):
-                evidence_kind = 'rgbds_reserved'
-            else:
-                evidence_kind = 'rgbds_assembly'
+            evidence_kind = evidence_kind_for_source(span.source_text)
             writer.writerow(
                 [
                     f'0x{span.start:04X}', f'0x{span.end:04X}', span.end - span.start,
@@ -429,6 +582,20 @@ def sha1(path: Path) -> str:
     return hashlib.sha1(path.read_bytes()).hexdigest()
 
 
+def evidence_kind_for_source(source_text: str) -> str:
+    code = code_without_comment(source_text)
+    directive_prefix = code.split('"', 1)[0]
+    directives = re.findall(
+        r'(?<![A-Z0-9_])(INCBIN|DS|RB|RW|RL)(?![A-Z0-9_])',
+        directive_prefix.upper(),
+    )
+    if 'INCBIN' in directives:
+        return 'rgbds_incbin'
+    if any(item in ('DS', 'RB', 'RW', 'RL') for item in directives):
+        return 'rgbds_reserved'
+    return 'rgbds_assembly'
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Map exact RGBDS source lines to ROM bytes")
     parser.add_argument('--reference', type=Path, required=True)
@@ -438,6 +605,13 @@ def main() -> int:
     parser.add_argument('--expected-sha1', required=True)
     parser.add_argument('--rom-size', type=lambda value: int(value, 0), required=True)
     parser.add_argument('--source', action='append', default=[])
+    parser.add_argument(
+        '--follow-includes', action='store_true',
+        help=(
+            'trace --source files as textual RGBDS roots and instrument lines '
+            'in nested includes reached from ROM sections'
+        ),
+    )
     parser.add_argument('--build-system', choices=('direct', 'make'), default='direct')
     parser.add_argument('--make-target', default='all')
     parser.add_argument('--rebuilt-rom', default='instrumented.gb')
@@ -451,8 +625,13 @@ def main() -> int:
     args = parser.parse_args()
 
     rgbds_bin = args.rgbds_bin.resolve()
+    if args.follow_includes and not args.source:
+        parser.error('--follow-includes requires at least one --source')
+
     source_dir, marker_definitions = copy_and_instrument(
-        args.reference.resolve(), args.build_dir.resolve()
+        args.reference.resolve(),
+        args.build_dir.resolve(),
+        args.source if args.follow_includes else None,
     )
     if args.base_rom:
         shutil.copyfile(args.base_rom.resolve(), source_dir / 'baserom.gb')

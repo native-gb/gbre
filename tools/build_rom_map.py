@@ -2,6 +2,7 @@
 
 import argparse
 import csv
+from bisect import bisect_right
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,8 +14,10 @@ from gbre_common import (
     find_source_line,
     load_manifest,
     read_rgbds_sections,
+    read_rgbds_rom_layout,
     read_rgbds_symbols,
     mapping_at,
+    source_mapping_at,
 )
 
 
@@ -72,26 +75,63 @@ def evidence_at(spans: list[EvidenceSpan], address: int) -> EvidenceSpan | None:
     return min(matches, key=lambda span: span.end - span.start)
 
 
-def current_symbol(symbols: dict[int, list[str]], address: int) -> str:
-    starts = [start for start in symbols if start <= address]
-    if not starts:
+def evidence_for_intervals(
+    spans: list[EvidenceSpan], boundaries: list[int]
+) -> list[EvidenceSpan | None]:
+    """Select the narrowest evidence span for each boundary interval.
+
+    Every evidence start/end is itself a boundary, so the active set cannot
+    change within an interval. Sweeping those events avoids a quadratic scan
+    when a content-heavy ROM contributes hundreds of thousands of spans.
+    """
+    starts: dict[int, list[int]] = {}
+    ends: dict[int, list[int]] = {}
+    for index, span in enumerate(spans):
+        starts.setdefault(span.start, []).append(index)
+        ends.setdefault(span.end, []).append(index)
+
+    active: set[int] = set()
+    selected = []
+    for boundary in boundaries[:-1]:
+        for index in ends.get(boundary, []):
+            active.discard(index)
+        active.update(starts.get(boundary, []))
+        if active:
+            best = min(
+                active,
+                key=lambda index: (spans[index].end - spans[index].start, index),
+            )
+            selected.append(spans[best])
+        else:
+            selected.append(None)
+    return selected
+
+
+def current_symbol(
+    symbols: dict[int, list[str]], address: int, starts: list[int] | None = None
+) -> str:
+    starts = starts if starts is not None else sorted(symbols)
+    index = bisect_right(starts, address) - 1
+    if index < 0:
         return ''
-    return primary_symbol(symbols[max(starts)])
+    return primary_symbol(symbols[starts[index]])
 
 
 def symbol_at(
-    symbols: dict[int, list[str]], sections: list[Section], address: int
+    symbols: dict[int, list[str]], sections: list[Section], address: int,
+    symbol_starts: list[int] | None = None,
 ) -> str:
     section = section_at(sections, address)
     if not section:
         return '<padding>'
-    symbol = current_symbol(symbols, address)
-    if symbol and any(start >= section.start for start in symbols if start <= address):
-        return symbol
+    symbol_starts = symbol_starts if symbol_starts is not None else sorted(symbols)
+    index = bisect_right(symbol_starts, address) - 1
+    if index >= 0 and symbol_starts[index] >= section.start:
+        return primary_symbol(symbols[symbol_starts[index]])
     return f'<section:{section.name}>'
 
 
-def aggregate_status(unit: Unit | None, mapping: Range | None) -> str:
+def aggregate_status(unit: Unit | None, mapping: object | None) -> str:
     if not unit or not mapping:
         return 'unknown'
     if mapping.disposition != 'runtime':
@@ -153,6 +193,8 @@ def write_map(
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     boundaries = make_boundaries(manifest, sections, symbols, evidence_spans)
+    interval_evidence = evidence_for_intervals(evidence_spans, boundaries)
+    symbol_starts = sorted(symbols)
     with path.open('w', newline='') as destination:
         writer = csv.writer(destination, lineterminator='\n')
         writer.writerow(
@@ -168,8 +210,12 @@ def write_map(
             start = boundaries[index]
             end = boundaries[index + 1]
             section = section_at(sections, start)
-            evidence = evidence_at(evidence_spans, start)
+            evidence = interval_evidence[index]
             match = mapping_at(manifest, start)
+            if not match and evidence:
+                match = source_mapping_at(
+                    manifest, evidence.source_file, evidence.evidence_kind
+                )
             unit = match[0] if match else None
             mapping = match[1] if match else None
             disposition = mapping.disposition if mapping and section else 'not_runtime'
@@ -177,7 +223,9 @@ def write_map(
                 [
                     f'0x{start:04X}', f'0x{end:04X}', end - start,
                     evidence.section if evidence and evidence.section else section.name if section else 'linker gap',
-                    evidence.symbol if evidence and evidence.symbol else symbol_at(symbols, sections, start),
+                    evidence.symbol if evidence and evidence.symbol else symbol_at(
+                        symbols, sections, start, symbol_starts
+                    ),
                     evidence.source_file if evidence else '',
                     evidence.source_line if evidence else '',
                     evidence.source_text if evidence else '',
@@ -223,6 +271,13 @@ def main() -> int:
     parser.add_argument('--rgbds-map', type=Path)
     parser.add_argument('--rgbds-sym', type=Path)
     parser.add_argument('--source-map', type=Path)
+    parser.add_argument(
+        '--physical-padding', action='store_true',
+        help=(
+            'fill RGBDS section gaps as physical linker padding and the '
+            'post-link image tail as rgbfix padding'
+        ),
+    )
     parser.add_argument('--evidence-map', type=Path, action='append', default=[])
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
@@ -230,11 +285,14 @@ def main() -> int:
     manifest = load_manifest(args.manifest)
     if bool(args.rgbds_map) != bool(args.rgbds_sym):
         parser.error('--rgbds-map and --rgbds-sym must be supplied together')
-    sections = (
-        read_rgbds_sections(args.rgbds_map, manifest.rom_size)
-        if args.rgbds_map
-        else [Section(0, manifest.rom_size, 'unclassified ROM')]
-    )
+    if args.rgbds_map:
+        sections = (
+            read_rgbds_rom_layout(args.rgbds_map, manifest.rom_size)
+            if args.physical_padding
+            else read_rgbds_sections(args.rgbds_map, manifest.rom_size)
+        )
+    else:
+        sections = [Section(0, manifest.rom_size, 'unclassified ROM')]
     symbols = (
         read_rgbds_symbols(args.rgbds_sym, manifest.rom_size)
         if args.rgbds_sym

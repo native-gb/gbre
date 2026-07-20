@@ -12,7 +12,8 @@ REPO = Path(__file__).resolve().parents[1]
 TETRIS_RE = REPO.parent / 'native-gb-tetris-re'
 sys.path.insert(0, str(REPO / 'tools'))
 
-from gbre_common import load_manifest  # noqa: E402
+from gbre_common import load_manifest, source_mapping_at  # noqa: E402
+from build_rom_map import EvidenceSpan, evidence_for_intervals  # noqa: E402
 from compare_tetris_traces import (  # noqa: E402
     Transition,
     compare_transitions,
@@ -30,6 +31,57 @@ from compare_tetris_endings import (  # noqa: E402
     compare_landmarks,
 )
 from compare_tetris_music import compare_music  # noqa: E402
+
+
+class RomMapSweepTest(unittest.TestCase):
+    def test_interval_sweep_selects_narrowest_overlapping_evidence(self):
+        broad = EvidenceSpan(0, 8, 'broad', '', '', 0, '', 'manual', 'high')
+        narrow = EvidenceSpan(2, 4, 'narrow', '', '', 0, '', 'rgbds', 'byte_exact')
+        boundaries = [0, 2, 4, 8]
+
+        self.assertEqual(
+            evidence_for_intervals([broad, narrow], boundaries),
+            [broad, narrow, broad],
+        )
+
+    def test_manifest_source_globs_select_scattered_exact_rebuild_spans(self):
+        manifest_text = '''{
+  "schema_version": 2,
+  "game": {"id": "test", "title": "Test", "rom_size": 16, "sha1": "00"},
+  "units": [{
+    "id": "test.maps",
+    "source_mappings": [{
+      "path": "data/maps/headers/*.asm",
+      "evidence_kind": "rgbds_assembly",
+      "relationship": "implements",
+      "confidence": "exact",
+      "claim": "Every emitted byte from each matched map header is decoded"
+    }],
+    "verification": "verified"
+  }]
+}'''
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'manifest.json'
+            path.write_text(manifest_text)
+            manifest = load_manifest(path)
+
+        self.assertIsNone(
+            source_mapping_at(manifest, 'data/maps/headers/PalletTown.asm')
+        )
+        match = source_mapping_at(
+            manifest,
+            'data/maps/headers/PalletTown.asm',
+            'rgbds_assembly',
+        )
+        self.assertIsNotNone(match)
+        self.assertEqual(match[0].id, 'test.maps')
+        self.assertEqual(match[1].confidence, 'exact')
+        self.assertIsNone(source_mapping_at(
+            manifest,
+            'data/maps/headers/PalletTown.asm',
+            'rgbds_incbin',
+        ))
+        self.assertIsNone(source_mapping_at(manifest, 'maps/PalletTown.blk'))
 
 
 class GbreToolsTest(unittest.TestCase):

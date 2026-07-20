@@ -2,6 +2,7 @@
 
 import json
 import re
+from fnmatch import fnmatchcase
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -41,10 +42,21 @@ class NativeTarget:
 
 
 @dataclass(frozen=True)
+class SourceMapping:
+    path: str
+    evidence_kind: str | None
+    relationship: str
+    confidence: str
+    claim: str
+    disposition: str
+
+
+@dataclass(frozen=True)
 class Unit:
     id: str
     name: str
     rom_ranges: tuple[Range, ...]
+    source_mappings: tuple[SourceMapping, ...]
     asm_symbols: tuple[str, ...]
     native: tuple[NativeTarget, ...]
     understanding: str
@@ -122,6 +134,45 @@ def load_manifest(path: Path) -> Manifest:
             if current.start < previous.end:
                 raise ValueError(f"overlapping ROM ranges inside {unit_id}")
 
+        source_mappings = tuple(
+            SourceMapping(
+                path=item["path"],
+                evidence_kind=item.get("evidence_kind"),
+                relationship=item.get("relationship", "implements"),
+                confidence=item.get("confidence", "hypothesis"),
+                claim=item.get("claim", ""),
+                disposition=item.get("disposition", "runtime"),
+            )
+            for item in raw_unit.get("source_mappings", [])
+        )
+        for item in source_mappings:
+            if not item.path or item.path.startswith('/') or '\\' in item.path:
+                raise ValueError(
+                    f"invalid source mapping path for {unit_id}: {item.path!r}"
+                )
+            if item.evidence_kind is not None and not item.evidence_kind:
+                raise ValueError(
+                    f"invalid empty evidence kind for {unit_id}:{item.path}"
+                )
+            if item.relationship not in RELATIONSHIPS:
+                raise ValueError(
+                    f"invalid source relationship for {unit_id}: "
+                    f"{item.relationship}"
+                )
+            if item.confidence not in MAPPING_CONFIDENCE:
+                raise ValueError(
+                    f"invalid source confidence for {unit_id}: {item.confidence}"
+                )
+            if item.disposition not in DISPOSITIONS:
+                raise ValueError(
+                    f"invalid source disposition for {unit_id}: "
+                    f"{item.disposition}"
+                )
+            if schema_version >= 2 and not item.claim:
+                raise ValueError(
+                    f"source mapping for {unit_id} requires a claim"
+                )
+
         native = tuple(
             NativeTarget(item["path"], item["anchor"])
             for item in raw_unit.get("native", [])
@@ -131,6 +182,7 @@ def load_manifest(path: Path) -> Manifest:
                 id=unit_id,
                 name=raw_unit.get("name", unit_id),
                 rom_ranges=ranges,
+                source_mappings=source_mappings,
                 asm_symbols=tuple(raw_unit.get("asm_symbols", [])),
                 native=native,
                 understanding=raw_unit.get("understanding", "unknown"),
@@ -192,6 +244,54 @@ def read_rgbds_sections(path: Path, rom_size: int) -> list[Section]:
     return sections
 
 
+def read_rgbds_rom_layout(path: Path, rom_size: int) -> list[Section]:
+    sections = read_rgbds_sections(path, rom_size)
+    rom_banks = []
+    for line in path.read_text().splitlines():
+        match = ROM_BANK_RE.match(line)
+        if match:
+            rom_banks.append(int(match[1]))
+    if not rom_banks:
+        raise ValueError(f'RGBDS map contains no ROM banks: {path}')
+
+    bank_size = 0x4000
+    linked_end = min((max(rom_banks) + 1) * bank_size, rom_size)
+    completed = []
+    for bank_start in range(0, linked_end, bank_size):
+        bank_end = min(bank_start + bank_size, linked_end)
+        bank = bank_start // bank_size
+        bank_sections = [
+            item
+            for item in sections
+            if item.bank == bank and bank_start <= item.start < bank_end
+        ]
+        cursor = bank_start
+        for section in bank_sections:
+            if section.start < cursor:
+                raise ValueError(
+                    f'overlapping RGBDS sections at ${section.start:04X}'
+                )
+            if section.start > cursor:
+                completed.append(Section(cursor, section.start, 'linker padding', bank))
+            completed.append(section)
+            cursor = section.end
+        if cursor < bank_end:
+            completed.append(Section(cursor, bank_end, 'linker padding', bank))
+
+    for bank_start in range(linked_end, rom_size, bank_size):
+        bank_end = min(bank_start + bank_size, rom_size)
+        completed.append(
+            Section(
+                bank_start,
+                bank_end,
+                'rgbfix padding',
+                bank_start // bank_size,
+            )
+        )
+
+    return completed
+
+
 def read_rgbds_symbol_entries(path: Path, rom_size: int) -> list[tuple[int, int, str]]:
     entries = []
     for line in path.read_text().splitlines():
@@ -230,6 +330,33 @@ def mapping_at(manifest: Manifest, address: int) -> tuple[Unit, Range] | None:
     if not matches:
         return None
     return min(matches, key=lambda match: match[1].end - match[1].start)
+
+
+def source_mapping_at(
+    manifest: Manifest, source_file: str, evidence_kind: str | None = None
+) -> tuple[Unit, SourceMapping] | None:
+    if not source_file:
+        return None
+    matches = [
+        (unit, item)
+        for unit in manifest.units
+        for item in unit.source_mappings
+        if fnmatchcase(source_file, item.path) and
+        (
+            item.evidence_kind is None or
+            (evidence_kind is not None and item.evidence_kind == evidence_kind)
+        )
+    ]
+    if not matches:
+        return None
+    if len(matches) > 1:
+        descriptions = ', '.join(
+            f'{unit.id}:{item.path}' for unit, item in matches
+        )
+        raise ValueError(
+            f'ambiguous source mappings for {source_file}: {descriptions}'
+        )
+    return matches[0]
 
 
 def find_source_line(path: Path, anchor: str) -> int | None:

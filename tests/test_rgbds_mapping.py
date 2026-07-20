@@ -12,6 +12,8 @@ sys.path.insert(0, str(REPO / 'tools'))
 from build_rgbds_source_map import (  # noqa: E402
     Marker,
     MarkerDefinition,
+    discover_rom_lines,
+    evidence_kind_for_source,
     instrument_source,
     make_spans,
     marker_line,
@@ -22,11 +24,26 @@ from gbre_common import (  # noqa: E402
     Section,
     linear_rom_address,
     read_rgbds_sections,
+    read_rgbds_rom_layout,
     read_rgbds_symbols,
 )
 
 
 class RgbdsBankMappingTest(unittest.TestCase):
+    def test_inline_labels_do_not_hide_incbin_or_reserved_evidence(self):
+        self.assertEqual(
+            evidence_kind_for_source('PalletTown_Blocks: INCBIN "maps/PalletTown.blk"'),
+            'rgbds_incbin',
+        )
+        self.assertEqual(
+            evidence_kind_for_source('Padding:: ds 4'),
+            'rgbds_reserved',
+        )
+        self.assertEqual(
+            evidence_kind_for_source('Label: db "INCBIN", 1'),
+            'rgbds_assembly',
+        )
+
     def test_cpu_addresses_become_linear_rom_offsets(self):
         self.assertEqual(linear_rom_address(0, 0x0150, 0x10000), 0x0150)
         self.assertEqual(linear_rom_address(0, 0x7FFF, 0x8000), 0x7FFF)
@@ -77,6 +94,31 @@ ROMX bank #3:
         self.assertEqual(symbols[0xA002], ['level_1_1_enemies'])
         self.assertEqual(symbols[0xFFFF], ['LastByte'])
         self.assertNotIn(0xC000, symbols)
+
+    def test_physical_layout_classifies_linker_and_rgbfix_padding(self):
+        map_text = '''ROM0 bank #0 (HOME):
+  SECTION: $0100-$0103 ($0004 bytes) ["Header"]
+ROMX bank #2:
+  SECTION: $6002-$6002 ($0001 bytes) ["bank 2 data"]
+'''
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'test.map'
+            path.write_text(map_text)
+            sections = read_rgbds_rom_layout(path, 0x10000)
+
+        self.assertEqual(
+            sections,
+            [
+                Section(0x0000, 0x0100, 'linker padding', 0),
+                Section(0x0100, 0x0104, 'Header', 0),
+                Section(0x0104, 0x4000, 'linker padding', 0),
+                Section(0x4000, 0x8000, 'linker padding', 1),
+                Section(0x8000, 0xA002, 'linker padding', 2),
+                Section(0xA002, 0xA003, 'bank 2 data', 2),
+                Section(0xA003, 0xC000, 'linker padding', 2),
+                Section(0xC000, 0x10000, 'rgbfix padding', 3),
+            ],
+        )
 
     def test_marker_bank_disambiguates_equal_cpu_addresses(self):
         sections = [
@@ -138,6 +180,152 @@ ROMX bank #3:
         self.assertIn('GBRE_ROOT_00000000::', instrumented)
         self.assertIn('.GBRE_00000002::', instrumented)
         self.assertEqual({item.bank for item in definitions.values()}, {2})
+
+    def test_nested_includes_inherit_rom_context(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / 'engine').mkdir()
+            (root / 'main.asm').write_text(
+                'SECTION "bank 1", ROMX\n'
+                'INCLUDE "engine/map.asm"\n'
+                'SECTION "work", WRAM0\n'
+                'INCLUDE "engine/state.asm"\n'
+            )
+            (root / 'engine/map.asm').write_text(
+                'MapRoutine::\n'
+                '\tld a, 1\n'
+                '\tINCLUDE "engine/map_data.asm"\n'
+            )
+            (root / 'engine/map_data.asm').write_text(
+                'MapData::\n'
+                '\tdb 1, 2, 3\n'
+            )
+            (root / 'engine/state.asm').write_text(
+                'StateData::\n'
+                '\tds 4\n'
+            )
+
+            lines = discover_rom_lines(root, ['main.asm'])
+
+        self.assertEqual(lines[root / 'engine/map.asm'], {1, 2, 3})
+        self.assertEqual(lines[root / 'engine/map_data.asm'], {1, 2})
+        self.assertNotIn(root / 'engine/state.asm', lines)
+
+    def test_forced_rom_lines_instrument_sectionless_include(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source_path = Path(temporary) / 'included.asm'
+            source_path.write_text('NestedData::\n\tdb $42\n')
+            definitions = {}
+            instrument_source(
+                source_path,
+                'included.asm',
+                definitions,
+                0,
+                {1, 2},
+            )
+            instrumented = source_path.read_text()
+
+        self.assertIn('.GBRE_00000000::', instrumented)
+        self.assertIn('.GBRE_00000001::', instrumented)
+        self.assertEqual(
+            [item.source_line for item in definitions.values()],
+            [1, 2],
+        )
+
+    def test_continuation_lines_do_not_receive_markers(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source_path = Path(temporary) / 'included.asm'
+            source_path.write_text(
+                'ASSERT VALUE < LIMIT, \\\n'
+                '\t"continued diagnostic"\n'
+                '\tdb $42\n'
+            )
+            definitions = {}
+            instrument_source(
+                source_path,
+                'included.asm',
+                definitions,
+                0,
+                {1, 2, 3},
+            )
+            instrumented = source_path.read_text()
+
+        self.assertEqual(instrumented.count('.GBRE_'), 2)
+        self.assertEqual(
+            [item.source_line for item in definitions.values()],
+            [1, 3],
+        )
+
+    def test_load_block_is_attributed_to_load_directive(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source_path = Path(temporary) / 'included.asm'
+            source_path.write_text(
+                'DMARoutine:\n'
+                'LOAD "OAM DMA", HRAM\n'
+                'hDMARoutine::\n'
+                '\tld a, $28\n'
+                '.wait\n'
+                '\tdec a\n'
+                '\tjr nz, .wait\n'
+                '\tret\n'
+                'ENDL\n'
+                '.End:\n'
+            )
+            definitions = {}
+            instrument_source(
+                source_path,
+                'included.asm',
+                definitions,
+                0,
+                set(range(1, 11)),
+            )
+            instrumented = source_path.read_text()
+
+        load_block = instrumented.split('LOAD "OAM DMA", HRAM\n', 1)[1]
+        load_block = load_block.split('ENDL\n', 1)[0]
+        self.assertNotIn('GBRE_', load_block)
+        self.assertEqual(
+            [item.source_line for item in definitions.values()],
+            [1, 2, 10],
+        )
+
+    def test_for_loop_is_attributed_to_for_directive(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source_path = Path(temporary) / 'included.asm'
+            source_path.write_text(
+                'Table::\n'
+                'FOR n, 3\n'
+                '\tdb n\n'
+                'ENDR\n'
+                'After::\n'
+            )
+            definitions = {}
+            instrument_source(
+                source_path,
+                'included.asm',
+                definitions,
+                0,
+                set(range(1, 6)),
+            )
+            instrumented = source_path.read_text()
+
+        loop = instrumented.split('FOR n, 3\n', 1)[1].split('ENDR\n', 1)[0]
+        self.assertNotIn('GBRE_', loop)
+        self.assertEqual(
+            [item.source_line for item in definitions.values()],
+            [1, 2, 5],
+        )
+
+    def test_sectionless_markers_are_matched_by_linked_bank_and_address(self):
+        section = Section(0x4000, 0x4002, 'bank 1', 1)
+        markers = [
+            Marker(0x4000, 1, 'engine/map.asm', 2, '', 'db 1, 2'),
+        ]
+        spans = make_spans(markers, [section])
+        verify_coverage(spans, [section])
+
+        self.assertEqual(spans[0].source_file, 'engine/map.asm')
+        self.assertEqual((spans[0].start, spans[0].end), (0x4000, 0x4002))
 
 
 if __name__ == '__main__':
