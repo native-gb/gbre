@@ -55,6 +55,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.resident_collision_cells',
                 'pokemon_red.world_tile_policies',
                 'pokemon_red.ordinary_field_movement',
+                'pokemon_red.party_field_moves',
                 'pokemon_red.out_of_battle_poison',
                 'pokemon_red.ordinary_wild_encounters',
                 'pokemon_red.wild_battle_startup',
@@ -217,6 +218,44 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             {item.path for item in poison.source_mappings},
         )
 
+    def test_party_field_move_ranges_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        world = units['pokemon_red.world_tile_policies']
+        field_moves = units['pokemon_red.party_field_moves']
+        warps = units['pokemon_red.ordinary_map_warps']
+        self.assertIn(
+            (0x0F100, 0x0F113),
+            {(item.start, item.end) for item in world.rom_ranges},
+        )
+        self.assertEqual(
+            {
+                (0x0CD99, 0x0CE04),
+                (0x0D9B4, 0x0DA56),
+                (0x0E5B6, 0x0E5C0),
+                (0x0E5DE, 0x0E5E3),
+                (0x0E8B8, 0x0E8E0),
+                (0x0EF54, 0x0EFF7),
+                (0x0F09F, 0x0F100),
+                (0x131C0, 0x131D4),
+                (0x131D4, 0x13203),
+                (0x13203, 0x13213),
+                (0x13213, 0x1322D),
+            },
+            {(item.start, item.end) for item in field_moves.rom_ranges},
+        )
+        self.assertEqual(
+            {'engine/overworld/field_move_messages.asm'},
+            {item.path for item in field_moves.source_mappings},
+        )
+        self.assertTrue(
+            {
+                (0x0735, 0x076B),
+                (0x079D, 0x07AA),
+            }.issubset(
+                {(item.start, item.end) for item in warps.rom_ranges}
+            )
+        )
+
     def test_safari_field_dispatch_ranges_are_exact(self):
         units = {unit.id: unit for unit in self.manifest.units}
         ordinary = units['pokemon_red.ordinary_wild_encounters']
@@ -294,8 +333,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 311_296)
-        self.assertEqual(status_bytes['verified'], 251_237)
-        self.assertEqual(status_bytes['unknown'], 486_043)
+        self.assertEqual(status_bytes['verified'], 251_912)
+        self.assertEqual(status_bytes['unknown'], 485_368)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
