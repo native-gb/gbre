@@ -217,6 +217,23 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             {item.path for item in poison.source_mappings},
         )
 
+    def test_safari_field_dispatch_ranges_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        ordinary = units['pokemon_red.ordinary_wild_encounters']
+        safari = units['pokemon_red.safari_zone_campaign']
+        self.assertIn(
+            (0x03B6, 0x03C2),
+            {(item.start, item.end) for item in ordinary.rom_ranges},
+        )
+        ranges = {(item.start, item.end) for item in safari.rom_ranges}
+        self.assertTrue(
+            {
+                (0x041A, 0x042C),
+                (0x0603, 0x061D),
+                (0x1E98D, 0x1EA17),
+            }.issubset(ranges)
+        )
+
     def test_exact_source_map_classifies_every_linker_emitted_byte(self):
         path = POKEMON_RED_RE / 'analysis/pokemon-red-ue-source-map.csv'
         if not path.is_file():
@@ -259,8 +276,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 311_296)
-        self.assertEqual(status_bytes['verified'], 250_827)
-        self.assertEqual(status_bytes['unknown'], 486_453)
+        self.assertEqual(status_bytes['verified'], 250_883)
+        self.assertEqual(status_bytes['unknown'], 486_397)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
