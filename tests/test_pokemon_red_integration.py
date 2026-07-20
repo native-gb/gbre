@@ -111,6 +111,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.application_boot_and_new_game',
                 'pokemon_red.opening_field_runtime',
                 'pokemon_red.power_plant_and_mewtwo',
+                'pokemon_red.cable_club_room_facing',
                 'pokemon_red.viridian_city_old_man',
                 'pokemon_red.ordinary_map_item_pickup',
                 'pokemon_red.viridian_forest_trainers',
@@ -210,8 +211,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 1_548)
         self.assertEqual(status_bytes['excluded'], 311_296)
-        self.assertEqual(status_bytes['verified'], 246_705)
-        self.assertEqual(status_bytes['unknown'], 489_027)
+        self.assertEqual(status_bytes['verified'], 246_782)
+        self.assertEqual(status_bytes['unknown'], 488_950)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -309,6 +310,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             implemented_scripts = {
                 'scripts/Daycare.asm',
                 'scripts/PalletTown.asm',
+                'scripts/TradeCenter.asm',
+                'scripts/Colosseum.asm',
                 'scripts/Route5.asm',
                 'scripts/Route5Gate.asm',
                 'scripts/Route6.asm',
