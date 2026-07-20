@@ -234,6 +234,24 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             }.issubset(ranges)
         )
 
+    def test_field_travel_ranges_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        travel = units['pokemon_red.blackout_checkpoint_and_resolution']
+        ranges = {(item.start, item.end) for item in travel.rom_ranges}
+        self.assertTrue(
+            {
+                (0x0965, 0x098F),
+                (0x12E7, 0x12ED),
+                (0x6346, 0x635B),
+                (0x638E, 0x63BF),
+                (0x0DFAF, 0x0DFFD),
+                (0x1318E, 0x131C0),
+                (0x1322D, 0x1328A),
+                (0x132DF, 0x132ED),
+                (0x71070, 0x71093),
+            }.issubset(ranges)
+        )
+
     def test_exact_source_map_classifies_every_linker_emitted_byte(self):
         path = POKEMON_RED_RE / 'analysis/pokemon-red-ue-source-map.csv'
         if not path.is_file():
@@ -276,8 +294,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 311_296)
-        self.assertEqual(status_bytes['verified'], 250_883)
-        self.assertEqual(status_bytes['unknown'], 486_397)
+        self.assertEqual(status_bytes['verified'], 251_237)
+        self.assertEqual(status_bytes['unknown'], 486_043)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
