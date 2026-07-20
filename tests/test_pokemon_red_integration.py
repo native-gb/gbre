@@ -164,6 +164,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.viridian_gym_giovanni',
                 'pokemon_red.field_interaction_and_presentation',
                 'pokemon_red.builtin_text_execution',
+                'pokemon_red.mart_execution',
                 'pokemon_red.rgbfix_padding',
             ],
         )
@@ -345,6 +346,34 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             {item.path for item in nurses.source_mappings},
         )
 
+    def test_mart_ranges_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        marts = units['pokemon_red.mart_execution']
+        self.assertEqual(
+            {
+                (0x02442, 0x0245D),
+                (0x0245D, 0x02461),
+                (0x02461, 0x024B1),
+                (0x024B1, 0x024B9),
+                (0x024B9, 0x024D6),
+                (0x02A2E, 0x02A72),
+                (0x02B96, 0x02BE6),
+                (0x02D57, 0x02E3B),
+                (0x03040, 0x03049),
+                (0x030D9, 0x030E8),
+                (0x037DF, 0x03826),
+                (0x06B21, 0x06B44),
+                (0x06C20, 0x06E43),
+                (0x0CE04, 0x0CEB8),
+                (0x0F71E, 0x0F836),
+                (0x1D47D, 0x1D495),
+                (0x1D4E0, 0x1D4F0),
+            },
+            {(item.start, item.end) for item in marts.rom_ranges},
+        )
+        self.assertIn('DisplayPokemartDialogue_', marts.asm_symbols)
+        self.assertIn('ViridianMart_TextPointers2', marts.asm_symbols)
+
     def test_exact_source_map_classifies_every_linker_emitted_byte(self):
         path = POKEMON_RED_RE / 'analysis/pokemon-red-ue-source-map.csv'
         if not path.is_file():
@@ -386,9 +415,9 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
 
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
-        self.assertEqual(status_bytes['excluded'], 311_296)
-        self.assertEqual(status_bytes['verified'], 252_072)
-        self.assertEqual(status_bytes['unknown'], 485_208)
+        self.assertEqual(status_bytes['excluded'], 311_308)
+        self.assertEqual(status_bytes['verified'], 253_761)
+        self.assertEqual(status_bytes['unknown'], 483_507)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -698,6 +727,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         text_resources = native / 'src/generated/text_resource_profile.inc'
         text_tables = native / 'src/generated/map_text_table_profile.inc'
         text_entries = native / 'src/generated/map_text_entry_profile.inc'
+        mart_inventories = native / 'src/generated/mart_inventory_profile.inc'
         map_scripts = native / 'src/generated/map_script_profile.inc'
         script_tables = (
             native / 'src/generated/map_script_state_table_profile.inc'
@@ -719,6 +749,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             not identity.is_file() or not layouts.is_file() or
             not text_resources.is_file() or not text_tables.is_file() or
             not text_entries.is_file() or not map_scripts.is_file() or
+            not mart_inventories.is_file() or
             not script_tables.is_file() or not script_entries.is_file() or
             not trainer_tables.is_file() or not trainer_entries.is_file() or
             not save_states.is_file() or not hidden_events.is_file()
@@ -732,6 +763,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             generated_text = temporary / 'text.inc'
             generated_text_tables = temporary / 'text-tables.inc'
             generated_text_entries = temporary / 'text-entries.inc'
+            generated_mart_inventories = temporary / 'mart-inventories.inc'
             generated_map_scripts = temporary / 'map-scripts.inc'
             generated_script_tables = temporary / 'script-tables.inc'
             generated_script_entries = temporary / 'script-entries.inc'
@@ -788,6 +820,22 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             )
             self.assertEqual(
                 generated_text_entries.read_bytes(), text_entries.read_bytes()
+            )
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(POKEMON_RED_RE / 'scripts/build-mart-profile.py'),
+                    '--reference', str(POKEMON_RED_RE / 'reference/pokered'),
+                    '--sym', str(POKEMON_RED_RE / 'reference/pokered/pokered.sym'),
+                    '--output', str(generated_mart_inventories),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(
+                generated_mart_inventories.read_bytes(),
+                mart_inventories.read_bytes(),
             )
             subprocess.run(
                 [
@@ -875,6 +923,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(text_tables.read_text().count('{"'), 223)
         self.assertEqual(text_entries.read_text().count('{"'), 1_210)
         self.assertIn('ViridianMartClerkSayHiToOakText', text_entries.read_text())
+        self.assertEqual(mart_inventories.read_text().count('{"'), 16)
+        self.assertIn('UnusedBikeShopClerkText', mart_inventories.read_text())
         self.assertEqual(map_scripts.read_text().count('{"'), 223)
         self.assertEqual(script_tables.read_text().count('{"'), 98)
         self.assertEqual(script_entries.read_text().count('{"'), 381)
