@@ -374,6 +374,23 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertIn('DisplayPokemartDialogue_', marts.asm_symbols)
         self.assertIn('ViridianMart_TextPointers2', marts.asm_symbols)
 
+    def test_celadon_vendor_sources_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        vendors = units['pokemon_red.celadon_commerce']
+        self.assertEqual(
+            {
+                'data/items/vending_prices.asm',
+                'engine/events/vending_machine.asm',
+                'data/events/prizes.asm',
+                'data/events/prize_mon_levels.asm',
+                'engine/events/prize_menu.asm',
+            },
+            {item.path for item in vendors.source_mappings},
+        )
+        self.assertIn('VendingPrices', vendors.asm_symbols)
+        self.assertIn('PrizeDifferentMenuPtrs', vendors.asm_symbols)
+        self.assertIn('PrizeMonLevelDictionary', vendors.asm_symbols)
+
     def test_exact_source_map_classifies_every_linker_emitted_byte(self):
         path = POKEMON_RED_RE / 'analysis/pokemon-red-ue-source-map.csv'
         if not path.is_file():
@@ -416,8 +433,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 311_308)
-        self.assertEqual(status_bytes['verified'], 253_761)
-        self.assertEqual(status_bytes['unknown'], 483_507)
+        self.assertEqual(status_bytes['verified'], 253_769)
+        self.assertEqual(status_bytes['unknown'], 483_499)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -728,6 +745,9 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         text_tables = native / 'src/generated/map_text_table_profile.inc'
         text_entries = native / 'src/generated/map_text_entry_profile.inc'
         mart_inventories = native / 'src/generated/mart_inventory_profile.inc'
+        celadon_vendors = (
+            native / 'src/generated/celadon_vendor_profile.inc'
+        )
         map_scripts = native / 'src/generated/map_script_profile.inc'
         script_tables = (
             native / 'src/generated/map_script_state_table_profile.inc'
@@ -749,7 +769,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             not identity.is_file() or not layouts.is_file() or
             not text_resources.is_file() or not text_tables.is_file() or
             not text_entries.is_file() or not map_scripts.is_file() or
-            not mart_inventories.is_file() or
+            not mart_inventories.is_file() or not celadon_vendors.is_file() or
             not script_tables.is_file() or not script_entries.is_file() or
             not trainer_tables.is_file() or not trainer_entries.is_file() or
             not save_states.is_file() or not hidden_events.is_file()
@@ -764,6 +784,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             generated_text_tables = temporary / 'text-tables.inc'
             generated_text_entries = temporary / 'text-entries.inc'
             generated_mart_inventories = temporary / 'mart-inventories.inc'
+            generated_celadon_vendors = temporary / 'celadon-vendors.inc'
             generated_map_scripts = temporary / 'map-scripts.inc'
             generated_script_tables = temporary / 'script-tables.inc'
             generated_script_entries = temporary / 'script-entries.inc'
@@ -836,6 +857,25 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             self.assertEqual(
                 generated_mart_inventories.read_bytes(),
                 mart_inventories.read_bytes(),
+            )
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(
+                        POKEMON_RED_RE /
+                        'scripts/build-celadon-vendor-profile.py'
+                    ),
+                    '--reference', str(POKEMON_RED_RE / 'reference/pokered'),
+                    '--sym', str(POKEMON_RED_RE / 'reference/pokered/pokered.sym'),
+                    '--output', str(generated_celadon_vendors),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(
+                generated_celadon_vendors.read_bytes(),
+                celadon_vendors.read_bytes(),
             )
             subprocess.run(
                 [
@@ -925,6 +965,9 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertIn('ViridianMartClerkSayHiToOakText', text_entries.read_text())
         self.assertEqual(mart_inventories.read_text().count('{"'), 16)
         self.assertIn('UnusedBikeShopClerkText', mart_inventories.read_text())
+        self.assertEqual(celadon_vendors.read_text().count('{"'), 3)
+        self.assertIn('PrizeMenuMon1Entries', celadon_vendors.read_text())
+        self.assertIn('kVendingOfferCount = 3', celadon_vendors.read_text())
         self.assertEqual(map_scripts.read_text().count('{"'), 223)
         self.assertEqual(script_tables.read_text().count('{"'), 98)
         self.assertEqual(script_entries.read_text().count('{"'), 381)
