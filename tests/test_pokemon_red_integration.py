@@ -167,6 +167,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.mart_execution',
                 'pokemon_red.pc_systems',
                 'pokemon_red.cable_club_reception',
+                'pokemon_red.palette_and_sgb_presentation',
                 'pokemon_red.raw_graphics_catalogue',
                 'pokemon_red.compressed_picture_catalogue',
                 'pokemon_red.rgbfix_padding',
@@ -486,6 +487,51 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             {('documented', 'ported', 'verified', 'exact')},
         )
 
+    def test_palette_sgb_ranges_and_map_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        palettes = units['pokemon_red.palette_and_sgb_presentation']
+        self.assertEqual(
+            [(item.start, item.end) for item in palettes.rom_ranges],
+            [
+                (0x03DDC, 0x03E08),
+                (0x71DDF, 0x71FEB),
+                (0x71FEB, 0x7219E),
+                (0x7219E, 0x72FE8),
+            ],
+        )
+        self.assertEqual(
+            sum(item.end - item.start for item in palettes.rom_ranges),
+            4_661,
+        )
+        self.assertEqual(
+            [item.relationship for item in palettes.rom_ranges],
+            ['implements', 'implements', 'references', 'implements'],
+        )
+        self.assertEqual(
+            palettes.rom_ranges[2].disposition,
+            'intentional_change',
+        )
+        rows = []
+        rom_map = POKEMON_RED_RE / 'analysis/pokemon-red-ue-rom-map'
+        for path in sorted(rom_map.glob('bank-*.csv')):
+            with path.open(newline='') as source:
+                rows.extend(
+                    row for row in csv.DictReader(source)
+                    if row['unit_id'] == palettes.id
+                )
+        self.assertEqual(len(rows), 921)
+        self.assertEqual(sum(int(row['bytes']) for row in rows), 4_661)
+        self.assertEqual(
+            {
+                (
+                    row['understanding'], row['native_status'],
+                    row['verification'], row['mapping_confidence'],
+                )
+                for row in rows
+            },
+            {('documented', 'ported', 'verified', 'exact')},
+        )
+
     def test_compressed_picture_ranges_and_map_are_exact(self):
         units = {unit.id: unit for unit in self.manifest.units}
         pictures = units['pokemon_red.compressed_picture_catalogue']
@@ -564,9 +610,9 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
 
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
-        self.assertEqual(status_bytes['excluded'], 311_330)
-        self.assertEqual(status_bytes['verified'], 412_765)
-        self.assertEqual(status_bytes['unknown'], 324_481)
+        self.assertEqual(status_bytes['excluded'], 311_765)
+        self.assertEqual(status_bytes['verified'], 416_991)
+        self.assertEqual(status_bytes['unknown'], 319_820)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -603,6 +649,11 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'data/credits/credits_mons.asm',
                 'data/credits/credits_order.asm',
                 'data/credits/credits_text.asm',
+                'data/pokemon/palettes.asm',
+                'data/sgb/sgb_border.asm',
+                'data/sgb/sgb_packets.asm',
+                'data/sgb/sgb_palettes.asm',
+                'engine/gfx/palettes.asm',
                 'data/events/trades.asm',
                 'data/moves/moves.asm',
                 'data/moves/names.asm',
@@ -878,6 +929,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         compressed_pictures = (
             native / 'src/generated/compressed_picture_profile.inc'
         )
+        palette_profile = native / 'src/generated/palette_profile.inc'
         text_tables = native / 'src/generated/map_text_table_profile.inc'
         text_entries = native / 'src/generated/map_text_entry_profile.inc'
         mart_inventories = native / 'src/generated/mart_inventory_profile.inc'
@@ -905,7 +957,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         if (
             not identity.is_file() or not layouts.is_file() or
             not text_resources.is_file() or not graphics_assets.is_file() or
-            not compressed_pictures.is_file() or
+            not compressed_pictures.is_file() or not palette_profile.is_file() or
             not text_tables.is_file() or
             not text_entries.is_file() or not map_scripts.is_file() or
             not mart_inventories.is_file() or not celadon_vendors.is_file() or
@@ -923,6 +975,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             generated_text = temporary / 'text.inc'
             generated_graphics = temporary / 'graphics.inc'
             generated_pictures = temporary / 'pictures.inc'
+            generated_palettes = temporary / 'palettes.inc'
             generated_text_tables = temporary / 'text-tables.inc'
             generated_text_entries = temporary / 'text-entries.inc'
             generated_mart_inventories = temporary / 'mart-inventories.inc'
@@ -1001,6 +1054,22 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             )
             self.assertEqual(
                 generated_pictures.read_bytes(), compressed_pictures.read_bytes()
+            )
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(POKEMON_RED_RE / 'scripts/build-palette-profile.py'),
+                    '--reference', str(POKEMON_RED_RE / 'reference/pokered'),
+                    '--sym', str(POKEMON_RED_RE / 'reference/pokered/pokered.sym'),
+                    '--rom', str(POKEMON_RED_RE / 'reference/pokered/pokered.gbc'),
+                    '--output', str(generated_palettes),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(
+                generated_palettes.read_bytes(), palette_profile.read_bytes()
             )
             subprocess.run(
                 [
