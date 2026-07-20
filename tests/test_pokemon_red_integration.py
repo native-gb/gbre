@@ -109,6 +109,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.hall_of_fame_and_credits',
                 'pokemon_red.original_save_codec',
                 'pokemon_red.application_boot_and_new_game',
+                'pokemon_red.opening_field_runtime',
                 'pokemon_red.viridian_city_old_man',
                 'pokemon_red.ordinary_map_item_pickup',
                 'pokemon_red.viridian_forest_trainers',
@@ -209,8 +210,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 1_548)
         self.assertEqual(status_bytes['excluded'], 311_296)
-        self.assertEqual(status_bytes['verified'], 246_220)
-        self.assertEqual(status_bytes['unknown'], 489_512)
+        self.assertEqual(status_bytes['verified'], 246_254)
+        self.assertEqual(status_bytes['unknown'], 489_478)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
