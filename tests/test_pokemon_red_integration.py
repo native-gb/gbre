@@ -159,6 +159,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.pokemon_mansion_campaign',
                 'pokemon_red.cinnabar_gym_blaine',
                 'pokemon_red.viridian_gym_giovanni',
+                'pokemon_red.field_interaction_and_presentation',
                 'pokemon_red.rgbfix_padding',
             ],
         )
@@ -210,10 +211,10 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 last_emitted_row = row
 
         self.assertEqual(cursor, 0x100000)
-        self.assertEqual(status_bytes['documented'], 1_548)
+        self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 311_296)
-        self.assertEqual(status_bytes['verified'], 248_200)
-        self.assertEqual(status_bytes['unknown'], 487_532)
+        self.assertEqual(status_bytes['verified'], 250_350)
+        self.assertEqual(status_bytes['unknown'], 486_930)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -297,6 +298,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'engine/events/cinnabar_lab.asm',
                 'data/events/card_key_maps.asm',
                 'data/events/hidden_coins.asm',
+                'data/events/hidden_events.asm',
                 'engine/events/vending_machine.asm',
                 'engine/events/hidden_items.asm',
                 'engine/events/hidden_events/safari_game.asm',
@@ -528,13 +530,16 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             native / 'src/generated/map_trainer_entry_profile.inc'
         )
         save_states = native / 'src/generated/save_map_state_profile.inc'
+        hidden_events = (
+            native / 'src/generated/hidden_event_routine_profile.inc'
+        )
         if (
             not identity.is_file() or not layouts.is_file() or
             not text_resources.is_file() or not text_tables.is_file() or
             not text_entries.is_file() or not map_scripts.is_file() or
             not script_tables.is_file() or not script_entries.is_file() or
             not trainer_tables.is_file() or not trainer_entries.is_file() or
-            not save_states.is_file()
+            not save_states.is_file() or not hidden_events.is_file()
         ):
             self.skipTest('public Pokemon Red generated profiles are absent')
 
@@ -551,6 +556,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             generated_trainer_tables = temporary / 'trainer-tables.inc'
             generated_trainer_entries = temporary / 'trainer-entries.inc'
             generated_save_states = temporary / 'save-states.inc'
+            generated_hidden_events = temporary / 'hidden-events.inc'
             subprocess.run(
                 [
                     sys.executable,
@@ -658,6 +664,25 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             self.assertEqual(
                 generated_save_states.read_bytes(), save_states.read_bytes()
             )
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(
+                        POKEMON_RED_RE /
+                        'scripts/build-hidden-event-profile.py'
+                    ),
+                    '--reference', str(POKEMON_RED_RE / 'reference/pokered'),
+                    '--sym',
+                    str(POKEMON_RED_RE / 'reference/pokered/pokered.sym'),
+                    '--output', str(generated_hidden_events),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(
+                generated_hidden_events.read_bytes(), hidden_events.read_bytes()
+            )
 
         self.assertEqual(identity.read_text().count('{"'), 248)
         self.assertEqual(layouts.read_text().count('{"'), 185)
@@ -678,6 +703,15 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(save_states.read_text().count('0x'), 248)
         self.assertEqual(save_states.read_text().count('0xFFFF'), 150)
         self.assertIn('PALLET_TOWN: wPalletTownCurScript', save_states.read_text())
+        self.assertEqual(hidden_events.read_text().count('{'), 33)
+        self.assertIn(
+            'HiddenEventRoutineKind::OpenRedsPC',
+            hidden_events.read_text(),
+        )
+        self.assertIn(
+            'HiddenEventRoutineKind::StartSlotMachine',
+            hidden_events.read_text(),
+        )
 
 
 if __name__ == '__main__':
