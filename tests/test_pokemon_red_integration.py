@@ -168,6 +168,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.pc_systems',
                 'pokemon_red.cable_club_reception',
                 'pokemon_red.raw_graphics_catalogue',
+                'pokemon_red.compressed_picture_catalogue',
                 'pokemon_red.rgbfix_padding',
             ],
         )
@@ -485,6 +486,43 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             {('documented', 'ported', 'verified', 'exact')},
         )
 
+    def test_compressed_picture_ranges_and_map_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        pictures = units['pokemon_red.compressed_picture_catalogue']
+        self.assertEqual(len(pictures.rom_ranges), 8)
+        self.assertEqual(
+            sum(item.end - item.start for item in pictures.rom_ranges),
+            92_385,
+        )
+        self.assertIn(
+            (0x04112, 0x0425B),
+            {(item.start, item.end) for item in pictures.rom_ranges},
+        )
+        self.assertIn(
+            (0x4C000, 0x4FD04),
+            {(item.start, item.end) for item in pictures.rom_ranges},
+        )
+        rows = []
+        rom_map = POKEMON_RED_RE / 'analysis/pokemon-red-ue-rom-map'
+        for path in sorted(rom_map.glob('bank-*.csv')):
+            with path.open(newline='') as source:
+                rows.extend(
+                    row for row in csv.DictReader(source)
+                    if row['unit_id'] == pictures.id
+                )
+        self.assertEqual(len(rows), 355)
+        self.assertEqual(sum(int(row['bytes']) for row in rows), 92_385)
+        self.assertEqual(
+            {
+                (
+                    row['understanding'], row['native_status'],
+                    row['verification'], row['mapping_confidence'],
+                )
+                for row in rows
+            },
+            {('documented', 'ported', 'verified', 'exact')},
+        )
+
     def test_exact_source_map_classifies_every_linker_emitted_byte(self):
         path = POKEMON_RED_RE / 'analysis/pokemon-red-ue-source-map.csv'
         if not path.is_file():
@@ -527,8 +565,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 311_330)
-        self.assertEqual(status_bytes['verified'], 320_380)
-        self.assertEqual(status_bytes['unknown'], 416_866)
+        self.assertEqual(status_bytes['verified'], 412_765)
+        self.assertEqual(status_bytes['unknown'], 324_481)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -837,6 +875,9 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         layouts = native / 'src/generated/map_layout_profile.inc'
         text_resources = native / 'src/generated/text_resource_profile.inc'
         graphics_assets = native / 'src/generated/graphics_asset_profile.inc'
+        compressed_pictures = (
+            native / 'src/generated/compressed_picture_profile.inc'
+        )
         text_tables = native / 'src/generated/map_text_table_profile.inc'
         text_entries = native / 'src/generated/map_text_entry_profile.inc'
         mart_inventories = native / 'src/generated/mart_inventory_profile.inc'
@@ -864,6 +905,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         if (
             not identity.is_file() or not layouts.is_file() or
             not text_resources.is_file() or not graphics_assets.is_file() or
+            not compressed_pictures.is_file() or
             not text_tables.is_file() or
             not text_entries.is_file() or not map_scripts.is_file() or
             not mart_inventories.is_file() or not celadon_vendors.is_file() or
@@ -880,6 +922,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             generated_layouts = temporary / 'layouts.inc'
             generated_text = temporary / 'text.inc'
             generated_graphics = temporary / 'graphics.inc'
+            generated_pictures = temporary / 'pictures.inc'
             generated_text_tables = temporary / 'text-tables.inc'
             generated_text_entries = temporary / 'text-entries.inc'
             generated_mart_inventories = temporary / 'mart-inventories.inc'
@@ -940,6 +983,24 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             )
             self.assertEqual(
                 generated_graphics.read_bytes(), graphics_assets.read_bytes()
+            )
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(POKEMON_RED_RE / 'scripts/build-picture-profile.py'),
+                    '--reference', str(POKEMON_RED_RE / 'reference/pokered'),
+                    '--source-map',
+                    str(POKEMON_RED_RE / 'analysis/pokemon-red-ue-source-map.csv'),
+                    '--sym', str(POKEMON_RED_RE / 'reference/pokered/pokered.sym'),
+                    '--rom', str(POKEMON_RED_RE / 'reference/pokered/pokered.gbc'),
+                    '--output', str(generated_pictures),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(
+                generated_pictures.read_bytes(), compressed_pictures.read_bytes()
             )
             subprocess.run(
                 [
@@ -1096,6 +1157,9 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(graphics_assets.read_text().count('{"'), 151)
         self.assertIn('PokemonLogoGraphics', graphics_assets.read_text())
         self.assertIn('gfx/tilesets/gym.2bpp', graphics_assets.read_text())
+        self.assertEqual(compressed_pictures.read_text().count('{"'), 355)
+        self.assertIn('MewPicFront', compressed_pictures.read_text())
+        self.assertIn('gfx/trainers/lance.pic', compressed_pictures.read_text())
         self.assertEqual(text_tables.read_text().count('{"'), 223)
         self.assertEqual(text_entries.read_text().count('{"'), 1_210)
         self.assertIn('ViridianMartClerkSayHiToOakText', text_entries.read_text())
