@@ -12,8 +12,13 @@ REPO = Path(__file__).resolve().parents[1]
 TETRIS_RE = REPO.parent / 'native-gb-tetris-re'
 sys.path.insert(0, str(REPO / 'tools'))
 
-from gbre_common import load_manifest, source_mapping_at  # noqa: E402
+from gbre_common import (  # noqa: E402
+    load_manifest,
+    read_rom_map_rows,
+    source_mapping_at,
+)
 from build_rom_map import EvidenceSpan, evidence_for_intervals  # noqa: E402
+from shard_rom_map import shard_rom_map  # noqa: E402
 from compare_tetris_traces import (  # noqa: E402
     Transition,
     compare_transitions,
@@ -82,6 +87,30 @@ class RomMapSweepTest(unittest.TestCase):
             'rgbds_incbin',
         ))
         self.assertIsNone(source_mapping_at(manifest, 'maps/PalletTown.blk'))
+
+    def test_rom_map_bank_shards_preserve_order_and_split_boundaries(self):
+        source_text = '''start,end_exclusive,bytes,status
+0x0000,0x0003,3,verified
+0x0003,0x0006,3,unknown
+'''
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / 'map.csv'
+            shards = root / 'map'
+            source.write_text(source_text)
+            banks, rows = shard_rom_map(source, shards, 4, 6)
+            loaded = read_rom_map_rows(shards)
+
+            self.assertEqual((banks, rows), (2, 3))
+            self.assertEqual(
+                [(row['start'], row['end_exclusive']) for row in loaded],
+                [
+                    ('0x0000', '0x0003'),
+                    ('0x0003', '0x0004'),
+                    ('0x0004', '0x0006'),
+                ],
+            )
+            self.assertEqual(sum(int(row['bytes']) for row in loaded), 6)
 
 
 class GbreToolsTest(unittest.TestCase):

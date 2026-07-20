@@ -31,6 +31,8 @@ database do not.
 
 - `tools/build_rom_map.py` builds a gapless byte inventory from a semantic
   manifest and any available evidence maps.
+- `tools/shard_rom_map.py` splits a large gapless CSV at fixed ROM-bank
+  boundaries without changing its schema or coverage.
 - `tools/build_rgbds_source_map.py` maps emitted RGBDS source lines to exact ROM
   ranges while verifying that instrumentation does not change the rebuilt ROM.
 - `tools/build_report.py` produces the local interactive ROM heatmap.
@@ -58,8 +60,10 @@ available when `../native-gb-tetris-re` and the ignored local inputs exist.
 
 Each native workspace configures four paths: its manifest, ROM map, reference
 root, and HTML report. Those paths normally point into the corresponding private
-`-re` sibling. `F12` or Ctrl-click follows a `GBRE: game.unit` marker; dedicated
-commands jump to assembly, native code, or the heatmap.
+`-re` sibling. ROM-map readers accept either one CSV or a directory of
+hexadecimal `bank-*.csv` shards. `F12` or Ctrl-click follows a
+`GBRE: game.unit` marker; dedicated commands jump to assembly, native code, or
+the heatmap.
 
 ## Starting a game without a disassembly
 

@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 
 import argparse
-import csv
 import re
 import subprocess
 from pathlib import Path
 
-from gbre_common import load_manifest
+from gbre_common import load_manifest, read_rom_map_rows
 
 
 def read_rows(path: Path) -> list[dict]:
-    with path.open(newline='') as source:
-        return list(csv.DictReader(source))
+    return read_rom_map_rows(path)
 
 
 def query_address(query: str) -> int | None:

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import csv
 import json
 import re
 from fnmatch import fnmatchcase
@@ -15,6 +16,36 @@ ROM_BANK_RE = re.compile(
     re.IGNORECASE,
 )
 SYMBOL_RE = re.compile(r'^([0-9A-Fa-f]{2}):([0-9A-Fa-f]{4}) (\S+)$')
+
+
+def read_rom_map_rows(path: Path) -> list[dict[str, str]]:
+    """Read either one ROM-map CSV or an ordered bank-shard directory."""
+    if path.is_file():
+        parts = [path]
+    elif path.is_dir():
+        parts = sorted(
+            path.glob('bank-*.csv'),
+            key=lambda part: int(part.stem.split('-', 1)[1], 16),
+        )
+        if not parts:
+            raise ValueError(f'ROM-map directory has no bank shards: {path}')
+    else:
+        raise FileNotFoundError(f'ROM map does not exist: {path}')
+
+    rows: list[dict[str, str]] = []
+    expected_fields: list[str] | None = None
+    for part in parts:
+        with part.open(newline='') as source:
+            reader = csv.DictReader(source)
+            fields = reader.fieldnames
+            if not fields:
+                raise ValueError(f'ROM-map part has no CSV header: {part}')
+            if expected_fields is None:
+                expected_fields = fields
+            elif fields != expected_fields:
+                raise ValueError(f'ROM-map part has a mismatched header: {part}')
+            rows.extend(reader)
+    return rows
 
 
 @dataclass(frozen=True)

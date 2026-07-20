@@ -13,7 +13,7 @@ REPO = Path(__file__).resolve().parents[1]
 POKEMON_RED_RE = REPO.parent / 'native-gb-pokemon-red-re'
 sys.path.insert(0, str(REPO / 'tools'))
 
-from gbre_common import load_manifest  # noqa: E402
+from gbre_common import load_manifest, read_rom_map_rows  # noqa: E402
 
 
 class PokemonRedResearchIntegrationTest(unittest.TestCase):
@@ -110,6 +110,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.original_save_codec',
                 'pokemon_red.application_boot_and_new_game',
                 'pokemon_red.opening_field_runtime',
+                'pokemon_red.power_plant_and_mewtwo',
                 'pokemon_red.viridian_city_old_man',
                 'pokemon_red.ordinary_map_item_pickup',
                 'pokemon_red.viridian_forest_trainers',
@@ -187,31 +188,30 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(len(source_files), 1_862)
 
     def test_rom_map_is_gapless_and_physical_padding_is_explicit(self):
-        path = POKEMON_RED_RE / 'analysis/pokemon-red-ue-rom-map.csv'
-        if not path.is_file():
+        path = POKEMON_RED_RE / 'analysis/pokemon-red-ue-rom-map'
+        if not path.is_dir():
             self.skipTest('generated Pokemon Red ROM map is absent')
 
         cursor = 0
         status_bytes = Counter()
         padding_sections = Counter()
         last_emitted_row = None
-        with path.open(newline='') as source:
-            for row in csv.DictReader(source):
-                start = int(row['start'], 16)
-                end = int(row['end_exclusive'], 16)
-                self.assertEqual(start, cursor)
-                cursor = end
-                status_bytes[row['status']] += end - start
-                if row['section'] in ('linker padding', 'rgbfix padding'):
-                    padding_sections[row['section']] += end - start
-                if start == 0xB0606:
-                    last_emitted_row = row
+        for row in read_rom_map_rows(path):
+            start = int(row['start'], 16)
+            end = int(row['end_exclusive'], 16)
+            self.assertEqual(start, cursor)
+            cursor = end
+            status_bytes[row['status']] += end - start
+            if row['section'] in ('linker padding', 'rgbfix padding'):
+                padding_sections[row['section']] += end - start
+            if start == 0xB0606:
+                last_emitted_row = row
 
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 1_548)
         self.assertEqual(status_bytes['excluded'], 311_296)
-        self.assertEqual(status_bytes['verified'], 246_386)
-        self.assertEqual(status_bytes['unknown'], 489_346)
+        self.assertEqual(status_bytes['verified'], 246_705)
+        self.assertEqual(status_bytes['unknown'], 489_027)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -342,6 +342,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'scripts/RockTunnel1F.asm',
                 'scripts/RockTunnelB1F.asm',
                 'scripts/RockTunnelPokecenter.asm',
+                'scripts/PowerPlant.asm',
                 'scripts/LavenderTown.asm',
                 'scripts/LavenderPokecenter.asm',
                 'scripts/PokemonTower1F.asm',
@@ -447,6 +448,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'scripts/SilphCo10F.asm',
                 'scripts/SilphCo11F.asm',
                 'scripts/SilphCoElevator.asm',
+                'scripts/CeruleanCaveB1F.asm',
                 'scripts/SaffronGym.asm',
                 'scripts/CinnabarIsland.asm',
                 'scripts/CinnabarLab.asm',

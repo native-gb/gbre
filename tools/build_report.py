@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
-import csv
 import hashlib
 import html
 import json
 from pathlib import Path
 
-from gbre_common import find_source_line, load_manifest
+from gbre_common import find_source_line, load_manifest, read_rom_map_rows
 
 
 STATUS_CODES = {
@@ -24,26 +23,25 @@ STATUS_CODES = {
 
 def read_rows(path: Path) -> list[dict]:
     rows = []
-    with path.open(newline='') as source:
-        for item in csv.DictReader(source):
-            rows.append(
-                {
-                    's': int(item['start'], 16),
-                    'e': int(item['end_exclusive'], 16),
-                    'section': item['section'],
-                    'symbol': item['symbol'],
-                    'file': item['source_file'],
-                    'line': int(item['source_line']) if item['source_line'] else 0,
-                    'text': item['source_text'],
-                    'unit': item['unit_id'],
-                    'relationship': item['relationship'],
-                    'mappingConfidence': item['mapping_confidence'],
-                    'claim': item['claim'],
-                    'status': item['status'],
-                    'native': item['native_location'],
-                    'notes': item['notes'],
-                }
-            )
+    for item in read_rom_map_rows(path):
+        rows.append(
+            {
+                's': int(item['start'], 16),
+                'e': int(item['end_exclusive'], 16),
+                'section': item['section'],
+                'symbol': item['symbol'],
+                'file': item['source_file'],
+                'line': int(item['source_line']) if item['source_line'] else 0,
+                'text': item['source_text'],
+                'unit': item['unit_id'],
+                'relationship': item['relationship'],
+                'mappingConfidence': item['mapping_confidence'],
+                'claim': item['claim'],
+                'status': item['status'],
+                'native': item['native_location'],
+                'notes': item['notes'],
+            }
+        )
     return rows
 
 
