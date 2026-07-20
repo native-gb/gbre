@@ -208,8 +208,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 1_548)
         self.assertEqual(status_bytes['excluded'], 311_296)
-        self.assertEqual(status_bytes['verified'], 245_431)
-        self.assertEqual(status_bytes['unknown'], 490_301)
+        self.assertEqual(status_bytes['verified'], 245_767)
+        self.assertEqual(status_bytes['unknown'], 489_965)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -292,7 +292,9 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'engine/events/card_key.asm',
                 'engine/events/cinnabar_lab.asm',
                 'data/events/card_key_maps.asm',
+                'data/events/hidden_coins.asm',
                 'engine/events/vending_machine.asm',
+                'engine/events/hidden_items.asm',
                 'engine/events/hidden_events/safari_game.asm',
                 'engine/events/hidden_events/cinnabar_gym_quiz.asm',
                 'engine/overworld/daycare_exp.asm',
