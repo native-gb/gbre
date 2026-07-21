@@ -170,6 +170,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.cable_club_reception',
                 'pokemon_red.palette_and_sgb_presentation',
                 'pokemon_red.overworld_sprite_presentation',
+                'pokemon_red.native_field_composition',
                 'pokemon_red.raw_graphics_catalogue',
                 'pokemon_red.compressed_picture_catalogue',
                 'pokemon_red.audio_catalogue_and_command_driver',
@@ -626,6 +627,66 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             {('documented', 'ported', 'verified', 'exact')},
         )
 
+    def test_native_field_composition_ranges_and_map_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        field = units['pokemon_red.native_field_composition']
+        self.assertEqual(
+            [(item.start, item.end) for item in field.rom_ranges],
+            [
+                (0x009FC, 0x00B23),
+                (0x00CAA, 0x00D27),
+                (0x0104D, 0x0107C),
+                (0x028B4, 0x028C4),
+                (0x04B3C, 0x04BAD),
+                (0x050BD, 0x050DC),
+            ],
+        )
+        self.assertEqual(
+            [item.relationship for item in field.rom_ranges],
+            [
+                'references', 'implements', 'references',
+                'implements', 'references', 'implements',
+            ],
+        )
+        self.assertEqual(
+            [item.disposition for item in field.rom_ranges],
+            [
+                'intentional_change', 'runtime', 'intentional_change',
+                'runtime', 'intentional_change', 'runtime',
+            ],
+        )
+
+        rows = []
+        rom_map = POKEMON_RED_RE / 'analysis/pokemon-red-ue-rom-map'
+        for path in sorted(rom_map.glob('bank-*.csv')):
+            with path.open(newline='') as source:
+                rows.extend(
+                    row for row in csv.DictReader(source)
+                    if row['unit_id'] == field.id
+                )
+        self.assertEqual(len(rows), 366)
+        self.assertEqual(sum(int(row['bytes']) for row in rows), 627)
+        self.assertEqual(
+            {
+                (
+                    row['status'], row['understanding'],
+                    row['native_status'], row['verification'],
+                    row['mapping_confidence'], row['disposition'],
+                )
+                for row in rows
+            },
+            {
+                (
+                    'excluded', 'documented', 'ported', 'verified',
+                    'exact', 'intentional_change',
+                ),
+                (
+                    'verified', 'documented', 'ported', 'verified',
+                    'exact', 'runtime',
+                ),
+            },
+        )
+
     def test_compressed_picture_ranges_and_map_are_exact(self):
         units = {unit.id: unit for unit in self.manifest.units}
         pictures = units['pokemon_red.compressed_picture_catalogue']
@@ -704,9 +765,9 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
 
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
-        self.assertEqual(status_bytes['excluded'], 311_765)
-        self.assertEqual(status_bytes['verified'], 466_370)
-        self.assertEqual(status_bytes['unknown'], 270_441)
+        self.assertEqual(status_bytes['excluded'], 312_220)
+        self.assertEqual(status_bytes['verified'], 466_542)
+        self.assertEqual(status_bytes['unknown'], 269_814)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
