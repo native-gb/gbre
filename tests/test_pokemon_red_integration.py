@@ -169,6 +169,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.pc_systems',
                 'pokemon_red.cable_club_reception',
                 'pokemon_red.palette_and_sgb_presentation',
+                'pokemon_red.overworld_sprite_presentation',
                 'pokemon_red.raw_graphics_catalogue',
                 'pokemon_red.compressed_picture_catalogue',
                 'pokemon_red.audio_catalogue_and_command_driver',
@@ -549,6 +550,37 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             {('documented', 'ported', 'verified', 'exact')},
         )
 
+    def test_overworld_sprite_ranges_and_map_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        sprites = units['pokemon_red.overworld_sprite_presentation']
+        self.assertEqual(
+            [(item.start, item.end) for item in sprites.rom_ranges],
+            [(0x04000, 0x040B0), (0x17B27, 0x17C47)],
+        )
+        self.assertEqual(
+            {item.path for item in sprites.source_mappings},
+            {'data/sprites/facings.asm', 'data/sprites/sprites.asm'},
+        )
+        rows = []
+        rom_map = POKEMON_RED_RE / 'analysis/pokemon-red-ue-rom-map'
+        for path in sorted(rom_map.glob('bank-*.csv')):
+            with path.open(newline='') as source:
+                rows.extend(
+                    row for row in csv.DictReader(source)
+                    if row['unit_id'] == sprites.id
+                )
+        self.assertEqual(sum(int(row['bytes']) for row in rows), 464)
+        self.assertEqual(
+            {
+                (
+                    row['understanding'], row['native_status'],
+                    row['verification'], row['mapping_confidence'],
+                )
+                for row in rows
+            },
+            {('documented', 'ported', 'verified', 'exact')},
+        )
+
     def test_palette_sgb_ranges_and_map_are_exact(self):
         units = {unit.id: unit for unit in self.manifest.units}
         palettes = units['pokemon_red.palette_and_sgb_presentation']
@@ -673,8 +705,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 311_765)
-        self.assertEqual(status_bytes['verified'], 465_906)
-        self.assertEqual(status_bytes['unknown'], 270_905)
+        self.assertEqual(status_bytes['verified'], 466_370)
+        self.assertEqual(status_bytes['unknown'], 270_441)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -737,6 +769,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'data/trainers/names.asm',
                 'data/trainers/parties.asm',
                 'data/trainers/pic_pointers_money.asm',
+                'data/sprites/facings.asm',
+                'data/sprites/sprites.asm',
                 'data/tilesets/collision_tile_ids.asm',
                 'data/tilesets/bike_riding_tilesets.asm',
                 'data/tilesets/bookshelf_tile_ids.asm',
@@ -991,6 +1025,9 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         layouts = native / 'src/generated/map_layout_profile.inc'
         text_resources = native / 'src/generated/text_resource_profile.inc'
         graphics_assets = native / 'src/generated/graphics_asset_profile.inc'
+        overworld_sprites = (
+            native / 'src/generated/overworld_sprite_profile.inc'
+        )
         compressed_pictures = (
             native / 'src/generated/compressed_picture_profile.inc'
         )
@@ -1022,6 +1059,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         if (
             not identity.is_file() or not layouts.is_file() or
             not text_resources.is_file() or not graphics_assets.is_file() or
+            not overworld_sprites.is_file() or
             not compressed_pictures.is_file() or not palette_profile.is_file() or
             not text_tables.is_file() or
             not text_entries.is_file() or not map_scripts.is_file() or
@@ -1039,6 +1077,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             generated_layouts = temporary / 'layouts.inc'
             generated_text = temporary / 'text.inc'
             generated_graphics = temporary / 'graphics.inc'
+            generated_overworld_sprites = temporary / 'sprites.inc'
             generated_pictures = temporary / 'pictures.inc'
             generated_palettes = temporary / 'palettes.inc'
             generated_text_tables = temporary / 'text-tables.inc'
@@ -1101,6 +1140,26 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             )
             self.assertEqual(
                 generated_graphics.read_bytes(), graphics_assets.read_bytes()
+            )
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(
+                        POKEMON_RED_RE /
+                        'scripts/build-overworld-sprite-profile.py'
+                    ),
+                    '--reference', str(POKEMON_RED_RE / 'reference/pokered'),
+                    '--sym', str(POKEMON_RED_RE / 'reference/pokered/pokered.sym'),
+                    '--rom', str(POKEMON_RED_RE / 'reference/pokered/pokered.gbc'),
+                    '--output', str(generated_overworld_sprites),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(
+                generated_overworld_sprites.read_bytes(),
+                overworld_sprites.read_bytes(),
             )
             subprocess.run(
                 [
