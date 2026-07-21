@@ -172,6 +172,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.raw_graphics_catalogue',
                 'pokemon_red.compressed_picture_catalogue',
                 'pokemon_red.audio_catalogue_and_command_driver',
+                'pokemon_red.gameplay_audio_dispatch',
                 'pokemon_red.rgbfix_padding',
             ],
         )
@@ -213,6 +214,29 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(audit['cry_records'], 190)
         self.assertEqual(audit['driver_components'], 8)
         self.assertEqual(audit['driver_bytes'], 8_288)
+        self.assertEqual(audit['map_music_records'], 248)
+        self.assertEqual(audit['pokedex_rating_sounds'], 7)
+        self.assertEqual(audit['battle_music_roles'], 4)
+
+    def test_gameplay_audio_dispatch_ranges_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        dispatch = units['pokemon_red.gameplay_audio_dispatch']
+        self.assertEqual(
+            {(item.start, item.end) for item in dispatch.rom_ranges},
+            {
+                (0x090C6, 0x09103),
+                (0x0C04D, 0x0C23D),
+                (0x7D13B, 0x7D177),
+            },
+        )
+        self.assertEqual(
+            {item.path for item in dispatch.source_mappings},
+            {
+                'audio/play_battle_music.asm',
+                'audio/pokedex_rating_sfx.asm',
+                'data/maps/songs.asm',
+            },
+        )
 
     def test_bookshelf_policy_and_runtime_ranges_are_exact(self):
         units = {unit.id: unit for unit in self.manifest.units}
@@ -642,10 +666,10 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 last_emitted_row = row
 
         self.assertEqual(cursor, 0x100000)
-        self.assertEqual(status_bytes['documented'], 121)
+        self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 311_765)
-        self.assertEqual(status_bytes['verified'], 465_199)
-        self.assertEqual(status_bytes['unknown'], 271_491)
+        self.assertEqual(status_bytes['verified'], 465_816)
+        self.assertEqual(status_bytes['unknown'], 270_995)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -923,15 +947,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'scripts/VictoryRoad3F.asm',
                 'scripts/HallOfFame.asm',
             }
-            pending_audio_sources = {
-                'audio/play_battle_music.asm',
-                'audio/pokedex_rating_sfx.asm',
-            }
-            if row['source_file'] in pending_audio_sources:
-                self.assertEqual(row['understanding'], 'documented')
-                self.assertEqual(row['native_status'], 'not_started')
-                self.assertEqual(row['verification'], 'unverified')
-            elif (
+            if (
                 row['source_file'].startswith('data/pokemon/base_stats/') or
                 row['source_file'].startswith('data/wild/') or
                 row['source_file'].startswith('data/maps/headers/') or
@@ -943,10 +959,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 row['source_file'].startswith('text/') or
                 row['source_file'] in implemented_scripts or
                 row['source_file'] in implemented_tables or
-                (
-                    row['source_file'].startswith('audio/') and
-                    row['source_file'] not in pending_audio_sources
-                )
+                row['source_file'].startswith('audio/') or
+                row['source_file'] == 'data/maps/songs.asm'
             ):
                 self.assertEqual(row['understanding'], 'documented')
                 self.assertEqual(row['native_status'], 'ported')
