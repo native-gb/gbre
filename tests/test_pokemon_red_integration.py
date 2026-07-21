@@ -217,6 +217,9 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(audit['map_music_records'], 248)
         self.assertEqual(audit['pokedex_rating_sounds'], 7)
         self.assertEqual(audit['battle_music_roles'], 4)
+        self.assertEqual(audit['trainer_encounter_music_roles'], 3)
+        self.assertEqual(audit['trainer_encounter_explicit_classes'], 12)
+        self.assertEqual(audit['trainer_encounter_suppressed_classes'], 3)
 
     def test_gameplay_audio_dispatch_ranges_are_exact(self):
         units = {unit.id: unit for unit in self.manifest.units}
@@ -224,6 +227,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(
             {(item.start, item.end) for item in dispatch.rom_ranges},
             {
+                (0x033E8, 0x03442),
                 (0x090C6, 0x09103),
                 (0x0C04D, 0x0C23D),
                 (0x7D13B, 0x7D177),
@@ -232,6 +236,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(
             {item.path for item in dispatch.source_mappings},
             {
+                'data/trainers/encounter_types.asm',
                 'audio/play_battle_music.asm',
                 'audio/pokedex_rating_sfx.asm',
                 'data/maps/songs.asm',
@@ -668,8 +673,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 311_765)
-        self.assertEqual(status_bytes['verified'], 465_816)
-        self.assertEqual(status_bytes['unknown'], 270_995)
+        self.assertEqual(status_bytes['verified'], 465_906)
+        self.assertEqual(status_bytes['unknown'], 270_905)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -727,6 +732,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'data/pokemon/evos_moves.asm',
                 'data/pokemon/names.asm',
                 'data/trainers/ai_pointers.asm',
+                'data/trainers/encounter_types.asm',
                 'data/trainers/move_choices.asm',
                 'data/trainers/names.asm',
                 'data/trainers/parties.asm',
