@@ -280,6 +280,37 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             }.issubset({item.path for item in field.native}),
         )
 
+    def test_native_text_presentation_provenance_is_pinned(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        static_text = units['pokemon_red.static_text']
+        map_text = units['pokemon_red.map_text_dispatch']
+        field = units['pokemon_red.field_interaction_and_presentation']
+        palettes = units['pokemon_red.palette_and_sgb_presentation']
+
+        self.assertTrue(
+            {
+                '../native-gb-pokemon-red/src/text_presentation.cpp',
+                '../native-gb-pokemon-red/src/text_video.cpp',
+                '../native-gb-pokemon-red/tests/text_presentation_runtime_tests.cpp',
+                '../native-gb-pokemon-red/tests/text_video_runtime_tests.cpp',
+                '../native-gb-pokemon-red/tests/catalogue_tests.cpp',
+            }.issubset({item.path for item in static_text.native})
+        )
+        self.assertTrue(
+            {
+                '../native-gb-pokemon-red/src/application_runtime.cpp',
+                '../native-gb-pokemon-red/tests/application_runtime_tests.cpp',
+            }.issubset({item.path for item in map_text.native})
+        )
+        self.assertIn(
+            '../native-gb-pokemon-red/src/application_runtime.cpp',
+            {item.path for item in field.native},
+        )
+        self.assertIn(
+            '../native-gb-pokemon-red/src/text_video.cpp',
+            {item.path for item in palettes.native},
+        )
+
     def test_out_of_battle_poison_ranges_are_exact(self):
         units = {unit.id: unit for unit in self.manifest.units}
         poison = units['pokemon_red.out_of_battle_poison']
