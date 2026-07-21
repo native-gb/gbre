@@ -170,6 +170,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.save_menu_presentation',
                 'pokemon_red.trainer_info_presentation',
                 'pokemon_red.party_presentation',
+                'pokemon_red.town_map_presentation',
                 'pokemon_red.mart_execution',
                 'pokemon_red.pc_systems',
                 'pokemon_red.cable_club_reception',
@@ -652,6 +653,59 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(sum(int(row['bytes']) for row in rows), 2914)
         self.assertEqual({row['status'] for row in rows}, {'verified'})
 
+    def test_town_map_presentation_ranges_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        town_map = units['pokemon_red.town_map_presentation']
+        self.assertEqual(
+            {
+                (0x70E3E, 0x70F11),
+                (0x70F11, 0x70F40),
+                (0x70F90, 0x71093),
+                (0x7109B, 0x711AB),
+                (0x711AB, 0x711EF),
+                (0x71258, 0x712A6),
+                (0x712F1, 0x71313),
+                (0x71313, 0x71382),
+                (0x71382, 0x71473),
+                (0x71473, 0x716BE),
+                (0x716C6, 0x716F7),
+            },
+            {(item.start, item.end) for item in town_map.rom_ranges},
+        )
+        self.assertEqual(
+            {
+                'data/maps/town_map_order.asm',
+                'data/maps/town_map_entries.asm',
+                'data/maps/names.asm',
+            },
+            {item.path for item in town_map.source_mappings},
+        )
+        self.assertTrue(
+            {
+                '../native-gb-pokemon-red/src/catalogue_town_map.cpp',
+                '../native-gb-pokemon-red/src/town_map_presentation.cpp',
+                '../native-gb-pokemon-red/src/town_map_video.cpp',
+                '../native-gb-pokemon-red/src/application_input.cpp',
+                '../native-gb-pokemon-red/src/application_runtime.cpp',
+                '../native-gb-pokemon-red/src/desktop_app.cpp',
+                '../native-gb-pokemon-red/tests/town_map_presentation_runtime_tests.cpp',
+                '../native-gb-pokemon-red/tests/town_map_video_runtime_tests.cpp',
+                '../native-gb-pokemon-red/tests/town_map_application_runtime_tests.cpp',
+            }.issubset({item.path for item in town_map.native}),
+        )
+        rows = []
+        rom_map = POKEMON_RED_RE / 'analysis/pokemon-red-ue-rom-map'
+        for path in sorted(rom_map.glob('bank-*.csv')):
+            with path.open(newline='') as source:
+                rows.extend(
+                    row for row in csv.DictReader(source)
+                    if row['unit_id'] == town_map.id
+                )
+        # BuildFlyLocationsList already has a narrower 35-byte owner in the
+        # blackout/travel unit, leaving 1,922 newly owned Town Map bytes.
+        self.assertEqual(sum(int(row['bytes']) for row in rows), 1922)
+        self.assertEqual({row['status'] for row in rows}, {'verified'})
+
     def test_mart_ranges_are_exact(self):
         units = {unit.id: unit for unit in self.manifest.units}
         marts = units['pokemon_red.mart_execution']
@@ -1012,8 +1066,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 312_271)
-        self.assertEqual(status_bytes['verified'], 471_424)
-        self.assertEqual(status_bytes['unknown'], 264_881)
+        self.assertEqual(status_bytes['verified'], 473_346)
+        self.assertEqual(status_bytes['unknown'], 262_959)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
