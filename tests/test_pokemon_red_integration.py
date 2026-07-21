@@ -169,6 +169,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.start_option_menu_presentation',
                 'pokemon_red.save_menu_presentation',
                 'pokemon_red.trainer_info_presentation',
+                'pokemon_red.party_presentation',
                 'pokemon_red.mart_execution',
                 'pokemon_red.pc_systems',
                 'pokemon_red.cable_club_reception',
@@ -609,6 +610,48 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(sum(int(row['bytes']) for row in rows), 542)
         self.assertEqual({row['status'] for row in rows}, {'verified'})
 
+    def test_party_presentation_ranges_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        party = units['pokemon_red.party_presentation']
+        self.assertEqual(
+            {
+                (0x013FC, 0x014E1),
+                (0x076E1, 0x0783F),
+                (0x12953, 0x12ADC),
+                (0x12AE4, 0x12EDE),
+                (0x130A9, 0x1318E),
+                (0x1328A, 0x132DF),
+                (0x716F7, 0x71959),
+            },
+            {(item.start, item.end) for item in party.rom_ranges},
+        )
+        self.assertEqual(len(party.source_mappings), 0)
+        self.assertTrue(
+            {
+                '../native-gb-pokemon-red/src/catalogue_menus.cpp',
+                '../native-gb-pokemon-red/src/party_presentation.cpp',
+                '../native-gb-pokemon-red/src/party_video.cpp',
+                '../native-gb-pokemon-red/src/application_input.cpp',
+                '../native-gb-pokemon-red/src/application_runtime.cpp',
+                '../native-gb-pokemon-red/src/pokemon_red_audio_runtime.cpp',
+                '../native-gb-pokemon-red/src/desktop_app.cpp',
+                '../native-gb-pokemon-red/tests/catalogue_tests.cpp',
+                '../native-gb-pokemon-red/tests/party_presentation_runtime_tests.cpp',
+                '../native-gb-pokemon-red/tests/party_video_runtime_tests.cpp',
+                '../native-gb-pokemon-red/tests/party_application_runtime_tests.cpp',
+            }.issubset({item.path for item in party.native}),
+        )
+        rows = []
+        rom_map = POKEMON_RED_RE / 'analysis/pokemon-red-ue-rom-map'
+        for path in sorted(rom_map.glob('bank-*.csv')):
+            with path.open(newline='') as source:
+                rows.extend(
+                    row for row in csv.DictReader(source)
+                    if row['unit_id'] == party.id
+                )
+        self.assertEqual(sum(int(row['bytes']) for row in rows), 2914)
+        self.assertEqual({row['status'] for row in rows}, {'verified'})
+
     def test_mart_ranges_are_exact(self):
         units = {unit.id: unit for unit in self.manifest.units}
         marts = units['pokemon_red.mart_execution']
@@ -969,8 +1012,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 312_271)
-        self.assertEqual(status_bytes['verified'], 468_510)
-        self.assertEqual(status_bytes['unknown'], 267_795)
+        self.assertEqual(status_bytes['verified'], 471_424)
+        self.assertEqual(status_bytes['unknown'], 264_881)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
