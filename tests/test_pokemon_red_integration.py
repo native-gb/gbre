@@ -165,6 +165,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.viridian_gym_giovanni',
                 'pokemon_red.field_interaction_and_presentation',
                 'pokemon_red.builtin_text_execution',
+                'pokemon_red.two_option_menu_presentation',
                 'pokemon_red.mart_execution',
                 'pokemon_red.pc_systems',
                 'pokemon_red.cable_club_reception',
@@ -429,7 +430,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         nurses = units['pokemon_red.builtin_text_execution']
         self.assertEqual(
             {
-                (0x06FE9, 0x07078),
+                (0x06FE6, 0x07078),
                 (0x19C89, 0x19C8A),
                 (0x4426B, 0x4426C),
                 (0x488C7, 0x488C8),
@@ -451,6 +452,47 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'macros/scripts/text.asm',
             },
             {item.path for item in nurses.source_mappings},
+        )
+
+    def test_two_option_menu_ranges_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        menus = units['pokemon_red.two_option_menu_presentation']
+        self.assertEqual(
+            {
+                (0x035EC, 0x035F4),
+                (0x035FF, 0x0361A),
+                (0x03628, 0x03633),
+                (0x07603, 0x0763E),
+                (0x0763E, 0x07671),
+                (0x07671, 0x076E1),
+            },
+            {(item.start, item.end) for item in menus.rom_ranges},
+        )
+        self.assertEqual(
+            {'data/yes_no_menu_strings.asm'},
+            {item.path for item in menus.source_mappings},
+        )
+        safe_copy = next(
+            item for item in menus.rom_ranges
+            if item.start == 0x0763E
+        )
+        self.assertEqual(safe_copy.relationship, 'references')
+        self.assertEqual(safe_copy.disposition, 'intentional_change')
+        rows = []
+        rom_map = POKEMON_RED_RE / 'analysis/pokemon-red-ue-rom-map'
+        for path in sorted(rom_map.glob('bank-*.csv')):
+            with path.open(newline='') as source:
+                rows.extend(
+                    row for row in csv.DictReader(source)
+                    if row['unit_id'] == menus.id
+                )
+        self.assertEqual(sum(int(row['bytes']) for row in rows), 268)
+        status_bytes = Counter()
+        for row in rows:
+            status_bytes[row['status']] += int(row['bytes'])
+        self.assertEqual(
+            status_bytes,
+            Counter({'verified': 217, 'excluded': 51}),
         )
 
     def test_mart_ranges_are_exact(self):
@@ -812,9 +854,9 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
 
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
-        self.assertEqual(status_bytes['excluded'], 312_220)
-        self.assertEqual(status_bytes['verified'], 466_568)
-        self.assertEqual(status_bytes['unknown'], 269_788)
+        self.assertEqual(status_bytes['excluded'], 312_271)
+        self.assertEqual(status_bytes['verified'], 466_788)
+        self.assertEqual(status_bytes['unknown'], 269_517)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
@@ -848,6 +890,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'data/events/prizes.asm',
                 'data/events/prize_mon_levels.asm',
                 'data/events/slot_machine_wheels.asm',
+                'data/yes_no_menu_strings.asm',
                 'data/credits/credits_mons.asm',
                 'data/credits/credits_order.asm',
                 'data/credits/credits_text.asm',
