@@ -166,6 +166,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.field_interaction_and_presentation',
                 'pokemon_red.builtin_text_execution',
                 'pokemon_red.two_option_menu_presentation',
+                'pokemon_red.start_option_menu_presentation',
                 'pokemon_red.mart_execution',
                 'pokemon_red.pc_systems',
                 'pokemon_red.cable_club_reception',
@@ -495,6 +496,44 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(
             status_bytes,
             Counter({'verified': 217, 'excluded': 51}),
+        )
+
+    def test_start_and_option_menu_ranges_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        menus = units['pokemon_red.start_option_menu_presentation']
+        self.assertEqual(
+            {
+                (0x02ACD, 0x02B7F),
+                (0x05E8A, 0x0609E),
+                (0x0710B, 0x071C5),
+            },
+            {(item.start, item.end) for item in menus.rom_ranges},
+        )
+        self.assertEqual(len(menus.source_mappings), 0)
+        self.assertTrue(
+            {
+                '../native-gb-pokemon-red/src/catalogue_menus.cpp',
+                '../native-gb-pokemon-red/src/start_menu_presentation.cpp',
+                '../native-gb-pokemon-red/src/application_runtime.cpp',
+                '../native-gb-pokemon-red/src/pokemon_red_audio_runtime.cpp',
+                '../native-gb-pokemon-red/tests/start_menu_presentation_runtime_tests.cpp',
+                '../native-gb-pokemon-red/tests/application_runtime_tests.cpp',
+            }.issubset({item.path for item in menus.native}),
+        )
+        rows = []
+        rom_map = POKEMON_RED_RE / 'analysis/pokemon-red-ue-rom-map'
+        for path in sorted(rom_map.glob('bank-*.csv')):
+            with path.open(newline='') as source:
+                rows.extend(
+                    row for row in csv.DictReader(source)
+                    if row['unit_id'] == menus.id
+                )
+        # Thirty-five DrawStartMenu bytes were already verified by the
+        # original-save unit's six-entry/SAVE reachability claims.
+        self.assertEqual(sum(int(row['bytes']) for row in rows), 861)
+        self.assertEqual(
+            {row['status'] for row in rows},
+            {'verified'},
         )
 
     def test_mart_ranges_are_exact(self):
@@ -857,8 +896,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 312_271)
-        self.assertEqual(status_bytes['verified'], 466_859)
-        self.assertEqual(status_bytes['unknown'], 269_446)
+        self.assertEqual(status_bytes['verified'], 467_720)
+        self.assertEqual(status_bytes['unknown'], 268_585)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
