@@ -272,6 +272,13 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             },
             {item.path for item in field.source_mappings},
         )
+        self.assertTrue(
+            {
+                '../native-gb-pokemon-red/src/application_input.cpp',
+                '../native-gb-pokemon-red/src/desktop_app.cpp',
+                '../native-gb-pokemon-red/tests/application_input_runtime_tests.cpp',
+            }.issubset({item.path for item in field.native}),
+        )
 
     def test_out_of_battle_poison_ranges_are_exact(self):
         units = {unit.id: unit for unit in self.manifest.units}
@@ -610,6 +617,10 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(
             palettes.rom_ranges[4].disposition,
             'intentional_change',
+        )
+        self.assertIn(
+            '../native-gb-pokemon-red/src/desktop_video.cpp',
+            {item.path for item in palettes.native},
         )
         rows = []
         rom_map = POKEMON_RED_RE / 'analysis/pokemon-red-ue-rom-map'
