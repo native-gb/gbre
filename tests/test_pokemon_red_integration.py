@@ -167,6 +167,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                 'pokemon_red.builtin_text_execution',
                 'pokemon_red.two_option_menu_presentation',
                 'pokemon_red.start_option_menu_presentation',
+                'pokemon_red.save_menu_presentation',
                 'pokemon_red.mart_execution',
                 'pokemon_red.pc_systems',
                 'pokemon_red.cable_club_reception',
@@ -536,6 +537,41 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
             {'verified'},
         )
 
+    def test_save_menu_ranges_are_exact(self):
+        units = {unit.id: unit for unit in self.manifest.units}
+        save = units['pokemon_red.save_menu_presentation']
+        self.assertEqual(
+            {
+                (0x05DEF, 0x05E8A),
+                (0x7370A, 0x7378C),
+                (0x73AD1, 0x73B0D),
+            },
+            {(item.start, item.end) for item in save.rom_ranges},
+        )
+        self.assertEqual(len(save.source_mappings), 0)
+        self.assertTrue(
+            {
+                '../native-gb-pokemon-red/src/catalogue_menus.cpp',
+                '../native-gb-pokemon-red/src/save_menu_presentation.cpp',
+                '../native-gb-pokemon-red/src/application_runtime.cpp',
+                '../native-gb-pokemon-red/src/desktop_app.cpp',
+                '../native-gb-pokemon-red/tests/save_menu_presentation_runtime_tests.cpp',
+                '../native-gb-pokemon-red/tests/application_runtime_tests.cpp',
+            }.issubset({item.path for item in save.native}),
+        )
+        rows = []
+        rom_map = POKEMON_RED_RE / 'analysis/pokemon-red-ue-rom-map'
+        for path in sorted(rom_map.glob('bank-*.csv')):
+            with path.open(newline='') as source:
+                rows.extend(
+                    row for row in csv.DictReader(source)
+                    if row['unit_id'] == save.id
+                )
+        # The 345-byte claim overlaps 59 summary-number bytes already owned by
+        # application boot and 38 SaveMenu bytes owned by the save codec.
+        self.assertEqual(sum(int(row['bytes']) for row in rows), 248)
+        self.assertEqual({row['status'] for row in rows}, {'verified'})
+
     def test_mart_ranges_are_exact(self):
         units = {unit.id: unit for unit in self.manifest.units}
         marts = units['pokemon_red.mart_execution']
@@ -896,8 +932,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 312_271)
-        self.assertEqual(status_bytes['verified'], 467_720)
-        self.assertEqual(status_bytes['unknown'], 268_585)
+        self.assertEqual(status_bytes['verified'], 467_968)
+        self.assertEqual(status_bytes['unknown'], 268_337)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
