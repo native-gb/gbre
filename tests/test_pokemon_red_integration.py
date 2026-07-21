@@ -588,6 +588,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(
             [(item.start, item.end) for item in palettes.rom_ranges],
             [
+                (0x020BA, 0x020D1),
+                (0x02110, 0x02113),
                 (0x03DDC, 0x03E08),
                 (0x71DDF, 0x71FEB),
                 (0x71FEB, 0x7219E),
@@ -596,14 +598,17 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         )
         self.assertEqual(
             sum(item.end - item.start for item in palettes.rom_ranges),
-            4_661,
+            4_687,
         )
         self.assertEqual(
             [item.relationship for item in palettes.rom_ranges],
-            ['implements', 'implements', 'references', 'implements'],
+            [
+                'implements', 'implements', 'implements',
+                'implements', 'references', 'implements',
+            ],
         )
         self.assertEqual(
-            palettes.rom_ranges[2].disposition,
+            palettes.rom_ranges[4].disposition,
             'intentional_change',
         )
         rows = []
@@ -614,8 +619,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
                     row for row in csv.DictReader(source)
                     if row['unit_id'] == palettes.id
                 )
-        self.assertEqual(len(rows), 921)
-        self.assertEqual(sum(int(row['bytes']) for row in rows), 4_661)
+        self.assertEqual(len(rows), 937)
+        self.assertEqual(sum(int(row['bytes']) for row in rows), 4_687)
         self.assertEqual(
             {
                 (
@@ -766,8 +771,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 312_220)
-        self.assertEqual(status_bytes['verified'], 466_542)
-        self.assertEqual(status_bytes['unknown'], 269_814)
+        self.assertEqual(status_bytes['verified'], 466_568)
+        self.assertEqual(status_bytes['unknown'], 269_788)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
