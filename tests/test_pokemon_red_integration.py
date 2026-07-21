@@ -219,6 +219,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(audit['driver_bytes'], 8_288)
         self.assertEqual(audit['map_music_records'], 248)
         self.assertEqual(audit['pokedex_rating_sounds'], 7)
+        self.assertEqual(audit['text_sound_dispatches'], 10)
         self.assertEqual(audit['battle_music_roles'], 4)
         self.assertEqual(audit['trainer_encounter_music_roles'], 3)
         self.assertEqual(audit['trainer_encounter_explicit_classes'], 12)
@@ -230,6 +231,7 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(
             {(item.start, item.end) for item in dispatch.rom_ranges},
             {
+                (0x01C31, 0x01C78),
                 (0x033E8, 0x03442),
                 (0x090C6, 0x09103),
                 (0x0C04D, 0x0C23D),
@@ -855,8 +857,8 @@ class PokemonRedResearchIntegrationTest(unittest.TestCase):
         self.assertEqual(cursor, 0x100000)
         self.assertEqual(status_bytes['documented'], 0)
         self.assertEqual(status_bytes['excluded'], 312_271)
-        self.assertEqual(status_bytes['verified'], 466_788)
-        self.assertEqual(status_bytes['unknown'], 269_517)
+        self.assertEqual(status_bytes['verified'], 466_859)
+        self.assertEqual(status_bytes['unknown'], 269_446)
         self.assertEqual(padding_sections['rgbfix padding'], 311_296)
         self.assertGreater(padding_sections['linker padding'], 0)
         self.assertIsNotNone(last_emitted_row)
